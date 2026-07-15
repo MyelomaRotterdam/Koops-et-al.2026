@@ -1,4 +1,5 @@
-#### FIGURE CONFIGURATION 20-02-2026 MARNIX KOOPS
+
+#### FIGURE CONFIGURATION # [ Spatial profiling identifies a distinct and topographically-defined tumor microenvironment that emerges during multiple myeloma evolution ] 
 
 
 # Load packages and objects -----------------------------------------------
@@ -482,7 +483,7 @@ plot_patient_deltas_boxplot_with_stat_same_order_capped_test_archi_lmer <- funct
     cluster_colors = NULL,
     tumor = FALSE,
     adjust_p = TRUE,
-    save_stats_path = "~/R_analyses/scRNAseq/Xenium_run3/p_values_LMER_test2.xlsx",
+    save_stats_path = "~/p_values_LMER_test2.xlsx",
     comparison_name = NULL
 ) {
   
@@ -1040,13 +1041,15 @@ plot_patient_deltas_boxplot_with_stat_same_order_capped_paired <- function(
 
 
 
+
+
 plot_patient_deltas_boxplot_with_stat_same_order_capped_paired_broad <- function(
     df,  cluster_order_defined,
     cluster_colors = NULL,method = c("delta", "ratio"),
     tumor = FALSE,
     adjust_p = TRUE 
 ) {
-  
+  eps <- 1e-5  # small constant to avoid log issues
   df <- df %>%
     mutate(
       patient_id = sub("_(dense|sparse)$", "", sample)
@@ -1101,7 +1104,7 @@ plot_patient_deltas_boxplot_with_stat_same_order_capped_paired_broad <- function
   
   result_df <- result_df %>%
     left_join(stat_df, by = "clusters") %>%
-    mutate(value_capped = pmin(pmax(value, -2.4), 2.4))
+    mutate(value_capped = pmin(pmax(value, -4.4), 4.4))
   
   star_x_pos <- result_df %>%
     group_by(clusters) %>%
@@ -1176,7 +1179,7 @@ plot_patient_deltas_boxplot_with_stat_same_order_capped_paired_broad <- function
               inherit.aes = FALSE,
               hjust = ifelse(star_x_pos$xpos > 0, 0, 1),
               size = 5) +
-    coord_cartesian(xlim = c(-2.5, 2.5)) +
+    coord_cartesian(xlim = c(-4.5, 4.5)) +
     theme_minimal() +
     theme(
       panel.grid.major = element_blank(),
@@ -1477,7 +1480,7 @@ structural_cells <- qread("~/structural_cells.qs" )
 Idents(structural_cells) <- structural_cells$annot_structure_second
 # Rename Idents with singular names and consistent formatting
 structural_cells <- RenameIdents(object = structural_cells,
-                                                   "Osteoblasts" = "Osteoblast",
+                                                   "Osteoblasts" = "Osteolineage",
                                                    "Adipocytes" = "Adipocyte",
                                                    "Fibro-like MSC" = "Fibro MSC",
                                                    "Osteo-fibroblastic MSC" = "Osteo-Fibroblastic MSC"
@@ -2083,7 +2086,7 @@ pdf(file= file.path(output_dir,"Figure_2/barplot_patients_tumorgrouped_horizonta
 print(plot)
 dev.off()
 
-# Figure 2D  ---------------------------------------------------------------
+# Figure 2D combined proportion graph ---------------------------------------------------------------
 
 df_all_combined <-  readRDS("S_curves_combined_new_order.rds")
 
@@ -2532,9 +2535,9 @@ mcsaveRDS(stat_df, "~/stat_df_normalpcvsdensehorizontalarchiplot.rds")
 
 # Figure 3C  ----------------------------------------------------------------
 
-# see Figure 4I
+# see Figure 5G
 
-# Figure 3D proportion per broad annotation per architecture ---------------------------
+# Figure 3D proportion per broad annotation per architecture myeloid ---------------------------
 
 meta_df <- Xenium_Object_Seurat@meta.data
 
@@ -2633,7 +2636,70 @@ for (bt in broad_types) {
 dev.off()
 
 
-#  Figure 3F ratio dense vs sparse IMC -------------------------------------------------------------------
+# Figure 3G IMC data UMAP ---------------------------
+
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+## activating packages
+library(BiocStyle)
+library(imcRtools)
+library(BiocManager)
+library(remotes)
+library(imcRtools)
+library(cytomapper) 
+library(dplyr)
+# Load necessary libraries
+library(sf)
+
+library(dplyr)
+library(dittoSeq)
+library(scater)
+library(patchwork)
+library(cowplot)
+library(viridis)
+
+
+
+plot <- dittoDimPlot(spe_IMC, 
+                     var = "cluster_celltype_integrated_202511_good_MKC_CD14_seperate", 
+                     reduction.use = "UMAP_harmony", 
+                     size = 0.2,
+                     do.label = TRUE) +
+  scale_color_manual(values = celltype_colors_IMC) 
+#theme(legend.title = element_blank()) +
+plot
+
+pdf(file= file.path(output_dir,"IMC_UMAP_2.pdf"), 
+    width = 15, height = 8, useDingbats = FALSE, onefile = FALSE)
+print(plot)
+dev.off()
+
+plot2 <- dittoDimPlot(spe_IMC, 
+                      var = "cluster_celltype_integrated_202511_good_MKC_CD14_seperate", 
+                      reduction.use = "UMAP_harmony", 
+                      size = 0.2,
+                      do.label = TRUE,
+                      do.raster = TRUE) +
+  scale_color_manual(values = celltype_colors_IMC) 
+#theme(legend.title = element_blank()) +
+plot2
+
+
+#Create the plot and rasterize points
+# Rasterize all point layers in the plot
+plot2 <- ggrastr::rasterise(plot, layers = "geom_point", dpi = 300)
+plot2
+
+# Save to PDF
+pdf(file = file.path(output_dir,  "IMC_UMAP_lowerres.pdf"), 
+    width = 15, height = 8, useDingbats = FALSE, onefile = FALSE)
+print(plot2)
+dev.off()
+
+
+
+#  Figure 4B ratio dense vs sparse IMC -------------------------------------------------------------------
 
 meta_df <- colData(spe_IMC)
 #meta_df_NDMM_SMM_CBM_PCL <- meta_df[meta_df$Status_simp_2 %in% c("NDMM", "SMM", "CBM", "PCL"), ]
@@ -2742,356 +2808,284 @@ print(p)
 dev.off()
 
 
-# Figure 3G neutrophil Madelon BAFF ---------------------------------------------------------------
-Neutrophils <- mcreadRDS("~/neutrophils_SCTtransformed.rds")
 
-Idents(Neutrophils) <- Neutrophils$annot
-# Rename Idents with singular names and consistent formatting
-Neutrophils <- RenameIdents(object = Neutrophils,
-                            "MatNeu1"               = "Late Immature Neutrophil",
-                            "MatNeu2"              = "Mature Neutrophil",
-                            "ImmNeu"            = "Early Immature Neutrophil",
-                            "PreNeu2"             = "Early Immature Neutrophil",
-                            "PreNeu1"             = "Early Immature Neutrophil",
-                            "Myelocytes"             = "Neutrophil Progenitor",
-                            "MKI67+ myelocytes"             = "Neutrophil Progenitor",
-                            "Erythrocytes"             = "Erythroid")
+# Figure 4C Dense vs sparse Roseth --------------------------------------------------
 
-Neutrophils$annot_Marnix  <- Idents(Neutrophils)
 
-Neutrophils <- subset(Neutrophils, subset =annot_Marnix != "Erythroid" )
-
-# Specify the order you want
-Neutrophils$annot_Marnix <- factor(Neutrophils$annot_Marnix,
-                                   levels = c("Neutrophil Progenitor",
-                                              "Early Immature Neutrophil",
-                                              "Late Immature Neutrophil",
-                                              "Mature Neutrophil"))
-
-Idents(Neutrophils) <- Neutrophils$annot_Marnix
+cluster_ordered_Roseth <- c("CD4 T", "CD8 T", "DCs", "HLA-DR+ Macs/monos", "Macs/monos", "Neutrophils", 
+                            "MPO+", "HSPCs", "Osteocytes", "Osteoclasts", "OB/RUNX2+", "Adipocytes", "Endothelial", "Unknown")
 
 
 
 
-VlnPlot(Neutrophils, features = c("TNFSF13B"))
-VlnPlot(Neutrophils,
-        features = c("TNFSF13B"),
-        pt.size = 0) + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # optional for better x-axis label
+meta <- colData(spe_Roseth)
+meta_df <- as.data.frame(meta)
+
+# 1. total cells per patient
+totals <- meta_df %>%
+  group_by(patient_ID) %>%
+  summarise(total_cells = n(), .groups = "drop")
+
+# 2. counts per patient per group
+counts <- meta_df %>%
+  group_by(patient_ID, final_group) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  left_join(totals, by = "patient_ID") %>%
+  mutate(prop = n / total_cells)
+
+# 3. reshape logic components
+dense_patients <- counts %>%
+  filter(final_group == "dense", prop > 0.05) %>%
+  pull(patient_ID)
+
+normal_sparse_patients <- counts %>%
+  filter(final_group %in% c("normal", "sparse")) %>%
+  group_by(patient_ID) %>%
+  summarise(prop = sum(prop), .groups = "drop") %>%
+  filter(prop > 0.05) %>%
+  pull(patient_ID)
+
+# 4. intersection = heterogeneous patients
+heterogeneous_patients <- intersect(dense_patients, normal_sparse_patients)
+
+heterogeneous_patients
 
 
-dotplot_df <- DotPlot(Neutrophils  ,features =  c("TNFSF13B"), assay = "SCT")
-dot_data <- dotplot_df$data
-#dot_data$id <- factor(dot_data$id, levels = cluster_colors) #choose!
-#dot_data$id_factor <- factor(dot_data$id, levels = names(cluster_colors_umap )) #choose!
 
-#library(ggplot2)
+metadata_onlynormalsparseanddense <- meta_df[!meta_df$final_group %in% 
+                                               c("unqualified", "dispersed"), ]
+metadata_onlynormalsparseanddense_heterogenous <- metadata_onlynormalsparseanddense %>%
+  dplyr::filter(patient_ID %in% heterogeneous_patients)
 
-#broad_annot_map <- meta_df %>%
-# select(id = annot_merged_final_with_macro_noslash, broader = annot_broad_run3) %>%
-#distinct()
-#dot_data <- dot_data %>%
-# left_join(broad_annot_map, by = "id")
+#metadata_onlynormalsparseanddense_heterogenous <- metadata_onlynormalsparseanddense %>%
+# filter(ObjectName_anonymous_grouped %in% c("PCL_2", "NDMM_3", "NDMM_4", "NDMM_5"))
 
-#dot_data_sub <- dot_data %>%
-# filter(broader %in% c("Endothelium", "Structural cells"))
 
-plot <-  ggplot(dot_data, aes(x = id, y = features.plot)) +
-  geom_point(aes(size = pct.exp, color = avg.exp.scaled)) +
-  scale_color_gradient(low = "lightblue", high = "firebrick") +
-  #scale_color_viridis_c(option = "C")  # or "C", "B", "A"
-  #facet_grid(. ~ broader, scales = "free_x", space = "free_x") +
-  theme_minimal() +
-  coord_flip()+
-  theme(
-    axis.text.x = element_text(size = 12, angle = 45, hjust = 1),  # Cluster names
-    axis.text.y = element_text(size = 14, face = "italic")         # Gene names
-  )+
-  #theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(x = "Cluster", y = "Gene", color = "Avg Expr (scaled)", size = "% expressed")
-plot
-
-pdf(file= file.path(output_dir,"Sup_Figure_3","dotplotBAFF_Madelon.pdf"), 
-    width = 7, height = 3, useDingbats = FALSE, onefile = FALSE)
-print(plot)
-dev.off()
-
-dotplot_df <- DotPlot(
-  Neutrophils,
-  features = "TNFSF13B",
-  split.by = "source"
+metadata_onlynormalsparseanddense_heterogenous$arch_grouped <- ifelse(
+  metadata_onlynormalsparseanddense_heterogenous$final_group %in% c("dense"),
+  "dense",
+  "sparse"
 )
 
-dot_data <- dotplot_df$data
+metadata_onlynormalsparseanddense_heterogenous <- metadata_onlynormalsparseanddense_heterogenous[!metadata_onlynormalsparseanddense_heterogenous$Phenotype4 %in% 
+                                                                                                   c("PCs"), ]
 
-dot_data$features.plot <- factor(dot_data$features.plot,
-                                 levels = "TNFSF13B")
+metadata_onlynormalsparseanddense_heterogenous$sample_cond <- paste(metadata_onlynormalsparseanddense_heterogenous$patient_ID, metadata_onlynormalsparseanddense_heterogenous$arch_grouped, sep = "_")
 
-dot_data <- dot_data %>%
-  tidyr::separate(
-    col = id,
-    into = c("celltype", "source"),
-    sep = "_",
-    extra = "merge"
-  )
+metadata_onlynormalsparseanddense_heterogenous$sample_cond <- as.character(metadata_onlynormalsparseanddense_heterogenous$sample_cond)
 
 
-dot_data$celltype <- factor(dot_data$celltype, levels = levels(Neutrophils$annot_Marnix))
-
-
-library(ggplot2)
-
-plot <- ggplot(dot_data, aes(x = source, y = celltype)) +
-  geom_point(aes(size = pct.exp, color = avg.exp.scaled)) +
-  #coord_flip() +
-  scale_color_gradient(low = "lightblue", high = "firebrick") +
-  theme_minimal(base_size = 14) +
-  labs(
-    x = "",
-    y = "Cell type",
-    color = "Avg expr (scaled)",
-    size = "% expressed"
-  ) +
-  scale_x_discrete(limits = c("NDMM", "control"))
-plot
-
-pdf(file= file.path(output_dir,"Sup_Figure_3","dotplotBAFF_Madelon_splitbystatus.pdf"), 
-    width = 7, height = 3, useDingbats = FALSE, onefile = FALSE)
-print(plot)
-dev.off()
-
-
-
-
-# Figure 3H TACIpos in PCs --------------------------------------------
-
-# Make sure the gene name matches exactly (case sensitive)
-gene <- "TNFRSF13B"
-
-Xenium_Object_Seurat$TNFRSF13B_status <- ifelse(
-  Seurat::GetAssayData(Xenium_Object_Seurat, assay = "RNA", layer = "counts")[gene, ] > 0,
-  "pos",
-  "neg"
-)
-
-library(dplyr)
-
-# 1) Subset to Plasma Cells
-pc_cells <- subset(Xenium_Object_Seurat, subset = annot_merged_final_with_macro_noslash_dis_lowquali_correct_correct_IFNsubdiv_for_s_curves == "Plasma Cell")
-
-pc_cells$TNFRSF13B_status_2 <- ifelse(
-  Seurat::GetAssayData(pc_cells, assay = "RNA", layer = "counts")[gene, ] > 1,
-  "pos",
-  "neg"
-)
-
-# 2) Calculate per patient
-pc_pct <- pc_cells@meta.data %>%
-  group_by(Status_simp_2) %>%
-  summarise(
-    n_pc = n(),
-    n_pc_TNFRSF13B_pos = sum(TNFRSF13B_status == "pos"),
-    pct_TNFRSF13B_pos = n_pc_TNFRSF13B_pos / n_pc * 100
-  ) %>%
-  arrange(Status_simp_2)
-
-pc_pct
-
-pc_pct_2 <- pc_cells@meta.data %>%
-  group_by(ObjectName_anonymous_grouped) %>%
-  summarise(
-    n_pc = n(),
-    n_pc_TNFRSF13B_pos = sum(TNFRSF13B_status == "pos"),
-    pct_TNFRSF13B_pos = n_pc_TNFRSF13B_pos / n_pc * 100
-  ) %>%
-  arrange(ObjectName_anonymous_grouped)
-
-pc_pct_2
-
-pc_pct_by_patient_group <- pc_cells@meta.data %>%
-  group_by(ObjectName_anonymous_grouped, tumor_percentage_grouped035ext_hex_average_method2) %>%
-  summarise(
-    n_pc = n(),
-    n_pc_TNFRSF13B_pos = sum(TNFRSF13B_status == "pos"),
-    pct_TNFRSF13B_pos = n_pc_TNFRSF13B_pos / n_pc * 100
-  ) %>%
-  arrange(ObjectName_anonymous_grouped, tumor_percentage_grouped035ext_hex_average_method2)
-
-pc_pct_by_patient_group
-
-
-
-pc_pct_by_patient_group_filtered <- pc_pct_by_patient_group %>%
-  filter(
-    tumor_percentage_grouped035ext_hex_average_method2 != "unqualified",
-    ObjectName_anonymous_grouped %in% c( "PCL_1","PCL_2","NDMM_3", "NDMM_4", "NDMM_5")
-  )
-
-library(ggplot2)
-
-ggplot(pc_pct_by_patient_group, 
-       aes(x = tumor_percentage_grouped035ext_hex_average_method2, y = pct_TNFRSF13B_pos)) +
-  geom_boxplot() +
-  geom_jitter(width = 0.2, alpha = 0.8) +
-  facet_wrap(~ ObjectName_anonymous_grouped, scales = "free_y") +
-  theme_minimal() +
-  labs(
-    x = "Tumor percentage group",
-    y = "% TNFRSF13B+ Plasma Cells",
-    title = "TNFRSF13B positivity in plasma cells per patient and tumor group"
-  )
-
-
-pc_pct_by_patient_group_filtered <- pc_pct_by_patient_group %>%
-  filter(
-    tumor_percentage_grouped035ext_hex_average_method2 != "unqualified",
-    ObjectName_anonymous_grouped %in% c( "PCL_2","NDMM_3", "NDMM_4", "NDMM_5")
-  )
-
-ggplot(pc_pct_by_patient_group_filtered,
-       aes(
-         x = tumor_percentage_grouped035ext_hex_average_method2,
-         y = pct_TNFRSF13B_pos,
-         group = ObjectName_anonymous_grouped,      # connect by patient
-         color = ObjectName_anonymous_grouped  # NDMM vs PCL color
-       )) +
-  geom_line(alpha = 0.6) +
-  geom_point(size = 2) +
-  theme_minimal() +
-  labs(
-    x = "Tumor percentage group",
-    y = "% TNFRSF13B+ Plasma Cells",
-    color = "Disease stage",
-    title = "TNFRSF13B positivity in plasma cells"
-  ) 
-
-library(dplyr)
-library(ggplot2)
-
-# Compute normalized TNFRSF13B per patient
-pc_pct_by_patient_group_norm <- pc_pct_by_patient_group_filtered %>%
-  # Filter unqualified regions first if needed
-  filter(tumor_percentage_grouped035ext_hex_average_method2 != "unqualified") %>%
-  group_by(ObjectName_anonymous_grouped) %>%
-  filter(any(tumor_percentage_grouped035ext_hex_average_method2 == "normal PC percentage")) %>%
+# 3. Compute proportions per patient (normal+sparse combined)
+prop_df <- metadata_onlynormalsparseanddense_heterogenous %>%
+  group_by(sample_cond,
+           Phenotype4) %>%
+  summarise(cell_count = n(), .groups = "drop") %>%
+  group_by(sample_cond) %>%
   mutate(
-    # Define baseline = lowest tumor percentage (assume "scarce" / "normal PC")
-    baseline_pct = pct_TNFRSF13B_pos[tumor_percentage_grouped035ext_hex_average_method2 == "normal PC percentage"],
-    baseline_pct = ifelse(length(baseline_pct) == 0, 1, baseline_pct),  # avoid empty baseline
-    pct_TNFRSF13B_norm = pct_TNFRSF13B_pos / baseline_pct
+    Freq = cell_count / sum(cell_count) * 100
   ) %>%
   ungroup()
 
-plot <- ggplot(pc_pct_by_patient_group_norm,
-               aes(
-                 x = tumor_percentage_grouped035ext_hex_average_method2,
-                 y = pct_TNFRSF13B_norm,
-                 group = ObjectName_anonymous_grouped,
-                 color = ObjectName_anonymous_grouped
-               )) +
-  geom_line(alpha = 0.6) +
-  geom_point(size = 2) +
-  theme_minimal() +
-  labs(
-    x = "Tumor percentage group",
-    y = "Normalized % TNFRSF13B+ PCs (relative to normal)",
-    color = "Patient",
-    title = "Normalized TNFRSF13B positivity in plasma cells"
-  ) +
-  scale_y_continuous(limits = c(0, NA))  # start at 0
 
 
-plot
+# 4. create wide table like propeller output
 
-pdf(file= file.path(output_dir,"Sup_Figure_6","TACIpos_PCS_perarchi.pdf"), 
-    width = 8, height = 6, useDingbats = FALSE, onefile = FALSE)
-print(plot)
+prop_trans_res_sparse <- prop_df %>%
+  dplyr::rename(
+    sample = sample_cond,
+    clusters = Phenotype4
+  ) %>%
+  dplyr::select(sample, clusters, Freq)
+
+
+# 5. join status
+
+metadata_unique <- metadata_onlynormalsparseanddense_heterogenous %>%
+  dplyr::distinct(sample_cond, disease2,arch_grouped)
+
+prop_trans_res_sparse <- prop_trans_res_sparse %>%
+  left_join(metadata_unique,
+            by = c("sample" = "sample_cond"))
+
+
+# 6. clean nonsense values
+
+prop_trans_res_sparse <- prop_trans_res_sparse %>%
+  filter(!is.na(Freq),
+         !is.nan(Freq))
+
+prop_trans_res_sparse
+
+
+
+
+
+plot_patient_deltas_boxplot_with_stat_same_order_capped_paired_Roseth <- function(
+    df,  cluster_order_defined,
+    cluster_colors = NULL,method = c("delta", "ratio"),
+    tumor = FALSE,
+    adjust_p = TRUE 
+) {
+  
+  eps <- 1e-5
+  
+  df <- df %>%
+    mutate(
+      patient_id = sub("_(dense|sparse)$", "", sample)
+    )
+  
+  df_agg <- df %>%
+    group_by(patient_id, clusters, arch_grouped) %>%
+    summarise(Freq = mean(Freq), .groups = "drop")
+  
+  # Pivot to wide format so dense and sparse are paired per patient
+  paired_df <- df_agg %>%
+    pivot_wider(
+      id_cols = c(patient_id , clusters),
+      names_from = arch_grouped,
+      values_from = Freq
+    )
+  
+  result_df <- paired_df %>%
+    mutate(
+      delta = dense - sparse   ,
+      ratio = log2((dense + eps) / (sparse + eps))
+    ) %>%
+    mutate(value = if (method == "delta") delta else ratio)
+  
+  # Then compute paired t-test per cluster
+  stat_df <- paired_df %>%
+    group_by(clusters) %>%
+    summarise(
+      p_val = tryCatch({
+        t.test(dense, sparse, paired = TRUE)$p.value
+      }, error = function(e) NA),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      p_used = if (adjust_p) p.adjust(p_val, method = "BH") else p_val,
+      stars = case_when(
+        is.na(p_used) ~ "",
+        p_used < 0.001 ~ "***",
+        p_used < 0.01  ~ "**",
+        p_used < 0.05  ~ "*",
+        TRUE ~ ""
+      )
+    )
+  # Prepare plotting df
+  
+  
+  result_df <- result_df %>%
+    left_join(stat_df, by = "clusters") %>%
+    mutate(value_capped = pmin(pmax(value, -4.9), 4.9))
+  
+  star_x_pos <- result_df %>%
+    group_by(clusters) %>%
+    summarise(
+      median_val = median(value, na.rm = TRUE),
+      xpos = ifelse(median_val >= 0, max(value_capped, na.rm = TRUE), min(value_capped, na.rm = TRUE)),
+      label = unique(stars),
+      .groups = "drop"
+    )
+  
+  if (!is.null(cluster_colors)) {
+    axis_text_color <- function(x) cluster_colors[as.character(x)]
+  } else {
+    axis_text_color <- function(x) rep("black", length(x))
+  }
+  
+  result_df$clusters <- droplevels(result_df$clusters)
+  cluster_levels <- levels(result_df$clusters)
+  
+  cluster_groups1 <- tibble::tribble(
+    ~group,        ~start,        ~end,
+    "Myeloid",     "Plasmacytoid DC",      "Basophil Eosinophil",
+    "Other",     "MKC Lineage",        "Undefined Cell",
+    "T/NK Cell",       "CD8 T Cell",     "Regulatory T Cell")
+  
+  cluster_groups2 <- tibble::tribble(
+    ~group,        ~start,        ~end,
+    "B Lin",     "Plasma Cell",      "B or Plasma Cell",
+    "Myeloid",     "Plasmacytoid DC",      "Basophil Eosinophil",
+    "Other",     "MKC Lineage",        "Undefined Cell",
+    "T/NK Cell",       "CD8 T Cell",     "Regulatory T Cell")
+  
+  # Select based on tumor flag 
+  cluster_groups <- if (isTRUE(tumor)) cluster_groups2 else cluster_groups1
+  
+  
+  bg_rects <- cluster_groups %>%
+    mutate(
+      ymin = pmin(match(start, cluster_levels),
+                  match(end,   cluster_levels)) - 0.5,
+      ymax = pmax(match(start, cluster_levels),
+                  match(end,   cluster_levels)) + 0.5
+    )
+  
+  hline_df <- bg_rects %>%
+    transmute(
+      yintercept = ymin - 0
+    )
+  
+  
+  df_plot <- result_df
+  df_plot$clusters <- factor(df_plot$clusters, levels = cluster_order_defined)
+  
+  ggplot(df_plot, aes(x = value_capped, y = clusters)) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "gray40") +
+    geom_hline(
+      data = hline_df,
+      aes(yintercept = yintercept),
+      inherit.aes = FALSE,
+      linetype = "dashed",
+      color = "grey60",
+      linewidth = 0.6
+    ) +
+    geom_boxplot(aes(group = clusters), fill = "gray90", color = "black", 
+                 width = 0.6, outlier.shape = NA, size = 0.9) +
+    #geom_jitter(color = "#4D4D4D", height = 0.2, size = 1, alpha = 0.8) +
+    geom_text(data = star_x_pos,
+              aes(x = xpos * 1.05, y = clusters, label = label),
+              inherit.aes = FALSE,
+              hjust = ifelse(star_x_pos$xpos > 0, 0, 1),
+              size = 5) +
+    coord_cartesian(xlim = c(-7, 7)) +
+    theme_minimal() +
+    theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.background = element_rect(fill = "white", color = NA),
+      axis.text.y = element_text(
+        size = 12
+      ),
+      axis.text.x = element_text(size = 12)
+    ) +
+    labs(
+      x = ifelse(method == "delta",
+                 paste("Delta"),
+                 paste("log2 ratio vs mean of")),
+      y = "Cluster",
+      title = paste("Per-patient cluster", method)
+    )
+}
+
+
+
+pdf(file= file.path("dense_vs_sparse_not_normalized_Roseth_et_all_ordered_no_dots2.pdf"), width = 6, height = 4)
+
+
+p <- plot_patient_deltas_boxplot_with_stat_same_order_capped_paired_Roseth(prop_trans_res_sparse, tumor = FALSE, method = "ratio", adjust_p = TRUE, cluster_order_defined = rev(cluster_ordered_Roseth))+
+  ggtitle(paste0("Ratio Proportions Dense vs Sparse Paired"))
+
+print(p)
+
 dev.off()
 
 
 
-library(dplyr)
 
-paired_df <- pc_pct_by_patient_group_filtered %>%
-  filter(
-    tumor_percentage_grouped035ext_hex_average_method2 %in% c("normal PC percentage", "dense")
-  ) %>%
-  select(
-    ObjectName_anonymous_grouped,
-    tumor_percentage_grouped035ext_hex_average_method2,
-    pct_TNFRSF13B_pos
-  ) %>%
-  tidyr::pivot_wider(
-    names_from = tumor_percentage_grouped035ext_hex_average_method2,
-    values_from = pct_TNFRSF13B_pos
-  )
-
-t.test(
-  paired_df$`normal PC percentage`,
-  paired_df$dense,
-  paired = TRUE
-)
-
-
-plot <- ggplot(
-  pc_pct_by_patient_group_filtered,
-  aes(
-    x = tumor_percentage_grouped035ext_hex_average_method2,
-    y = pct_TNFRSF13B_pos
-  )
-) +
-  ## Boxplot (main signal)
-  geom_boxplot(
-    outlier.shape = NA,
-    fill = "#F2F2F2",
-    color = "black",
-    width = 0.55,
-    linewidth = 0.4
-  ) +
-  
-  ## Paired patient trajectories (context)
-  geom_line(
-    aes(group = ObjectName_anonymous_grouped),
-    color = "grey65",
-    alpha = 0.6,
-    linewidth = 0.4
-  ) +
-  
-  ## Patient points
-  geom_point(
-    aes(color = ObjectName_anonymous_grouped),
-    size = 2.4
-  ) +
-  
-  ## Optional: nicer discrete colors
-  scale_color_brewer(palette = "Dark2") +
-  
-  ## Clean theme
-  theme_classic(base_size = 14) +
-  theme(
-    legend.position = "right",
-    legend.title = element_text(size = 12),
-    legend.text = element_text(size = 11),
-    axis.text = element_text(color = "black"),
-    axis.title = element_text(size = 13),
-    plot.title = element_text(size = 15, face = "bold"),
-    axis.line = element_line(linewidth = 0.5)
-  ) +
-  
-  labs(
-    x = "Tumor density group",
-    y = "% TNFRSF13B⁺ plasma cells",
-    color = "Patient",
-    title = "TNFRSF13B expression in plasma cells across tumor density"
-  )
-
-pdf(file= file.path(output_dir,"Sup_Figure_6","TACIpos_PCS_perarchi.pdf"), 
-    width = 6, height = 6, useDingbats = FALSE, onefile = FALSE)
-print(plot)
-dev.off()
-
-
-# Figure 3 I-L Volcanoplots -----------------------------------------------
+# Figure 4 F-I Volcanoplots -----------------------------------------------
 
 
 
@@ -3135,7 +3129,7 @@ dev.off()
 
 
 
-# Figure 4A Cellular Neighborhood ---------------------------------------------------------------
+# Figure 5A Cellular Neighborhood ---------------------------------------------------------------
 
 library(pheatmap)
 
@@ -3164,7 +3158,7 @@ dev.off()
 
 
 
-# Figure 4B CN per tumor region  ---------------------------------------------------------------
+# Figure 5B CN per tumor region  ---------------------------------------------------------------
 
 meta_df <- Xenium_Object_Seurat@meta.data
 #meta_df_NDMM_SMM_CBM_PCL <- meta_df[meta_df$Status_simp_2 %in% c("NDMM", "SMM", "CBM", "PCL"), ]
@@ -3237,7 +3231,7 @@ pdf(file= file.path(output_dir,"Figure_3","barplot_tumor_grouped_CNs.pdf"),
 print(plot)
 dev.off()
 
-# Figure 4C CN per status  ---------------------------------------------------------------
+# Figure 5C CN per status  ---------------------------------------------------------------
 
 meta_df <- Xenium_Object_Seurat@meta.data
 meta_df_NDMM_SMM_CBM_PCL <- meta_df[meta_df$Status_simp_2 %in% c("NDMM", "SMM", "CBM", "PCL", "Relapse"), ]
@@ -3311,7 +3305,7 @@ print(plot)
 dev.off()
 
 
-# Figure 4J absolute interactions ---------------------------------------------------------------
+# Figure 5I absolute interactions ---------------------------------------------------------------
 
 plot_data <- readRDS("~/combined.rds")
 
@@ -3394,7 +3388,7 @@ for (arch in architectures) {
 dev.off()
 
 
-#Figure 4J Absolute interactions architectures in 1 plot per diseasestage ----------
+#Figure 5I Absolute interactions architectures in 1 plot per diseasestage ----------
 
 
 
@@ -3498,14 +3492,25 @@ tt_short <- plot_data2_NDMM %>%
 tt_short
 
 
-# Figure 4G 3 spatial combined ---------------------------------------------------------------
+# Figure 5G 3 spatial combined ---------------------------------------------------------------
 
 ## Interaction Analysis
 plot_data <- readRDS("~/combined_per_patient.rds")
 
-out_all_no_duplicates <- plot_data[!(plot_data$group_by %in% c( "02390_2_NDMM", "12928_2_PCL", "52998_2_NDMM","17034_2_NDMM","14719_3_CBM", "8667_3_CBM",  
-                                                                "9414_3_CBM", "17336_3_CBM")), ]
-out_all_noduplicates_noCBM <- out_all_no_duplicates[!(out_all_no_duplicates$group_by %in% c( "14719_2_CBM",  "14719_3_CBM", "8667_2_CBM","8667_3_CBM","9141_2_CBM","9414_2_CBM", "9414_3_CBM" ,  "17336_3_CBM", "17336_2_CBM", "14719_2_CBM"  ,   "14719_3_CBM")), ]
+out_all_no_duplicates <- out_all[!(out_all$group_by %in% c( "NDMM_5B", "PCL_2B", "NDMM_4B","NDMM_3B","CBM_2", "CBM_2",  
+                                                            "CBM_4", "CBM_1")), ]
+
+out_all_noduplicates_noCBM <- out_all_no_duplicates[!(out_all_no_duplicates$group_by %in% c(
+  "CBM_1",
+  "CBM_1B",
+  "CBM_2",
+  "CBM_2B",
+  "CBM_3",
+  "CBM_3B",
+  "CBM_4",
+  "CBM_4B",
+  "CBM_5"
+)),]
 
 out_all_tib <- as_tibble(out_all_no_duplicates)
 
@@ -3711,11 +3716,11 @@ library(dplyr)
 library(purrr)
 
 # 1. Get all sheet names
-sheets <- getSheetNames("p_values_LMER_test2.xlsx")
+sheets <- getSheetNames("p_values_LMER_test_XeniumRUN3.xlsx")
 
 # 2. Read all sheets + add sheet name column
 dense_vs_normal_archiLMER <- map_dfr(sheets, function(sh) {
-  read.xlsx("p_values_LMER_test2.xlsx", sheet = sh) %>%
+  read.xlsx("p_values_LMER_test_XeniumRUN3.xlsx", sheet = sh) %>%
     mutate(comparison = sh)
 })
 
@@ -3723,7 +3728,13 @@ dense_vs_normal_archiLMER <- dense_vs_normal_archiLMER[dense_vs_normal_archiLMER
 dense_vs_normal_archiLMER <- dense_vs_normal_archiLMER[dense_vs_normal_archiLMER$tumor_percentage_grouped035ext_hex_average_method2  =="dense", ]
 
 significance_df_plot <- dense_vs_normal_archiLMER
-significance_df_plot$logp_value <- -log10(significance_df_plot$p_val)
+significance_df_plot$logp_value <- -log10(significance_df_plot$p_used)
+
+significance_df_plot <- significance_df_plot %>%
+  dplyr::group_by(clusters) %>%
+  dplyr::mutate(average_ratio = mean(ratio, na.rm = TRUE)) %>%
+  dplyr::ungroup()
+
 
 significance_df_plot2 <- significance_df_plot  %>% 
   distinct(clusters, comparison, .keep_all = TRUE)       # keep first row per  
@@ -3783,8 +3794,8 @@ dev.off()
 
 significance_df_plot2 <- significance_df_plot2 %>%
   mutate(
-    logp_value = -log10(p_val),
-    score = ratio * logp_value  # combined effect size and significance
+    logp_value = -log10(p_used),
+    score = average_ratio * logp_value  # combined effect size and significance
   )
 
 # Prepare the data
@@ -4167,16 +4178,13 @@ positive_all_methods <- plot_df %>%
 positive_all_methods
 
 
-# Figure 4I interactions combined architecture and disease stage normalized-----------------------------------------
+# Figure 5I interactions combined architecture and disease stage normalized-----------------------------------------
 
 
 out_all <- readRDS("~/interactions.rds")
-out_all_no_duplicates <- out_all[!(out_all$group_by %in% c( "02390_2_NDMM", "12928_2_PCL", "52998_2_NDMM","17034_2_NDMM","14719_3_CBM", "8667_3_CBM",  
-                                                            "9414_3_CBM", "17336_3_CBM")), ]
-rename_vector <- c(
-  "7459_3_PCL_MM" = "7459_3_PCL",
-  "04000_3_PCL_MM" = "04000_3_PCL"
-)
+out_all_no_duplicates <- out_all[!(out_all$group_by %in% c( "NDMM_5B", "PCL_2B", "NDMM_4B","NDMM_3B","CBM_2", "CBM_2",  
+                                                            "CBM_4", "CBM_1")), ]
+
 
 # Apply renaming to the group_by column
 out_all_no_duplicates <- as_tibble(out_all_no_duplicates) %>%
@@ -4188,16 +4196,44 @@ out_all_no_duplicates <- as_tibble(out_all_no_duplicates) %>%
   mutate(status = str_extract(group_by, "(?<=_)[^_]+$"))
 
 
-
-out_all_CBM_no_duplicates  <- out_all_no_duplicates[out_all_no_duplicates$group_by %in% c( "14719_2_CBM",   "8667_2_CBM","9141_2_CBM","9414_2_CBM",  "17336_3_CBM", "14719_2_CBM"), ]
+out_all_CBM_no_duplicates <- out_all_no_duplicates[
+  out_all_no_duplicates$group_by %in% c(
+    "CBM_2B",
+    "CBM_3B",
+    "CBM_5",
+    "CBM_4B",
+    "CBM_1"
+  ),
+]
 
 out_all_per_archi_stage <- readRDS("~/interactions_combined_wo_duplicated.rds")
-out_all_per_archi_stage_no_duplicates <- out_all_per_archi_stage[!(out_all_per_archi_stage$group_by %in% c( "02390_2_NDMM", "12928_2_PCL", "52998_2_NDMM","17034_2_NDMM","14719_3_CBM", "8667_3_CBM",  
-                                                                                                            "9414_3_CBM", "17336_3_CBM")), ]
-out_all_per_archi_stage_no_duplicates_no_CBM <- out_all_per_archi_stage_no_duplicates[!(out_all_per_archi_stage_no_duplicates$group_by %in%  c("14719_2_CBM", "14719_3_CBM", "8667_2_CBM", "8667_3_CBM", 
-                                                                                                                                               "9141_2_CBM", "9414_2_CBM", "9414_3_CBM", 
-                                                                                                                                               "9414_3_CBM", "17336_3_CBM")), ]
 
+out_all_per_archi_stage_no_duplicates <- out_all_per_archi_stage[
+  !(out_all_per_archi_stage$group_by %in% c(
+    "NDMM_5B",
+    "PCL_2B",
+    "NDMM_4B",
+    "NDMM_3B",
+    "CBM_2",
+    "CBM_3",
+    "CBM_4",
+    "CBM_1"
+  )),
+]
+
+out_all_per_archi_stage_no_duplicates_no_CBM <- out_all_per_archi_stage_no_duplicates[
+  !(out_all_per_archi_stage_no_duplicates$group_by %in% c(
+    "CBM_1",
+    "CBM_1B",
+    "CBM_2",
+    "CBM_2B",
+    "CBM_3",
+    "CBM_3B",
+    "CBM_4",
+    "CBM_4B",
+    "CBM_5"
+  )),
+]
 
 
 # Split by architecture
@@ -4412,6 +4448,85 @@ plot
 pdf(file= file.path(output_dir,"Figure_3","interaction_combined_disease_stage_zeroiswhite.pdf"), 
     width = 13, height = 8, useDingbats = FALSE, onefile = FALSE)
 print(plot)
+dev.off()
+
+
+HVN87_merged_combined <- 
+  HVN87_merged_combined %>%
+  dplyr::rename(
+    ISS   = iss,
+    pfsi_1 = pfsi
+  )
+
+
+
+HVN87_merged_combined$architecture_group_3x <- ifelse(
+  HVN87_merged_combined$Nodule_SIZE_FINAL_with_3x_scored %in% c(4, 5),
+  "Nodular / sheet-like",
+  "Diffuse / mini-nodular"
+)
+
+
+# Figure 5J KM curve PFS --------------------------------------------------
+
+
+
+# Prepare metadata
+
+HVN87_merged_no_METADATA <- HVN87_merged_combined[!is.na(HVN87_merged_combined$pfs),]
+
+
+HVN87_merged_no_METADATA_no_lowquality <- HVN87_merged_no_METADATA[!is.na(HVN87_merged_no_METADATA$Nodule_SIZE_FINAL_average),]
+
+
+library(dplyr)
+
+meta <- HVN87_merged_no_METADATA_no_lowquality
+
+
+meta$BMPC_10 <- meta$bmpc_path / 10
+
+
+
+meta$reviss <- factor(meta$reviss)
+
+
+meta$architecture_group_average <- factor(meta$architecture_group_3x)
+
+
+library(survival)
+library(survminer)
+
+# KM model — PFS
+km_pfs_arch <- survfit(
+  Surv(pfs, pfsi_1) ~ architecture_group,
+  data = meta
+)
+
+# Plot with at-risk table
+p_km_pfs_arch <- ggsurvplot(
+  km_pfs_arch,
+  data = meta,
+  risk.table = TRUE,
+  risk.table.y.text = TRUE,
+  risk.table.y.text.col = TRUE,
+  pval = TRUE,
+  conf.int = FALSE,
+  xlab = "Time",
+  ylab = "Progression-free survival probability",
+  legend.title = "Architecture group",
+  palette = c("#9ECAE1", "#08519C"),
+  ggtheme = theme_bw(base_size = 14),
+  risk.table.height = 0.30
+)
+
+# Show plot + risk table
+p_km_pfs_arch
+
+
+# Save
+pdf("~/Fig_5/KM_pfs_architecture_group.pdf_3x", width = 8, height = 6)
+print(p_km_pfs_arch)
 dev.off()
 
 
@@ -4920,14 +5035,14 @@ dev.off()
 
 
 #run this and skip to end
-combined_percent_true_mac <- readRDS("combined_percent_true_mac.rds")
+combined_percent_true_mac <- readRDS("~/R_analyses/scRNAseq/Xenium_run3/RDS_files/Objects/combined_percent_true_mac.rds")
 
 # or run entire pipeline
-total_myeloid_madelon_2023 <- mcreadRDS("~/myeloid_scRNAseq.rds" )
+total_myeloid_de_Jong_2023 <- mcreadRDS("~/myeloid_scRNAseq.rds" )
 
 
 # Copy metadata
-meta_df <- total_myeloid_madelon_2023@meta.data
+meta_df <- total_myeloid_de_Jong_2023@meta.data
 
 # Remove neutrophils
 meta_no_neut <- meta_df[!meta_df$annotation_combined_simple %in% c("Mature neutrophils", "ImmNeu", "PreNeu", "Proliferating myeloblasts", " Myeloblasts"), ]
@@ -5322,7 +5437,7 @@ dev.off()
 
 
 meta_df <- Xenium_Object_Seurat@meta.data
-meta_df_02390 <- meta_df[meta_df$Tissue_ext == "NDMM_02390_3",]
+meta_df_NDMM_5 <- meta_df[meta_df$Tissue_ext == "NDMM_5",]
 
 # --- Step 1: Create the fixed bounding box for the study area ---
 bbox <- st_as_sfc(st_bbox(c(xmin = 0, ymin = 0, xmax = 200000, ymax = 200000), crs = NA))
@@ -5349,7 +5464,7 @@ dx <- offsets[[i]][1]
 dy <- offsets[[i]][2]
 
 # --- Step 1: convert metadata coordinates to sf ---
-centroids_df <- meta_df_02390[, c("x_corrected_together", "y_corrected_together")]
+centroids_df <- meta_df_NDMM_5[, c("x_corrected_together", "y_corrected_together")]
 cell_points <- st_as_sf(centroids_df, coords = c("x_corrected_together", "y_corrected_together"), crs = NA)
 
 # --- Step 2: get tissue bounding box ---
@@ -5477,7 +5592,7 @@ p <- ggplot(legend_df, aes(x = 1, y = celltype_fac, color = celltype_fac)) +
 legend_only <- cowplot::get_legend(p)
 
 # --- Save as PDF ---
-pdf(file= file.path(output_dir,"Sup_Figure_3/legend_02390_broad.pdf"), width = 3, height = 4, useDingbats = FALSE, onefile = FALSE)
+pdf(file= file.path(output_dir,"Sup_Figure_3/legend_NDMM_5_broad.pdf"), width = 3, height = 4, useDingbats = FALSE, onefile = FALSE)
 grid.newpage()
 grid.draw(legend_only)
 dev.off()
@@ -5494,6 +5609,193 @@ pdf(file = file.path(output_dir, "Figure_2/legend_HandE_tumorgrouped2A_horizonta
 grid.newpage()
 grid.draw(legend_horizontal)
 dev.off()
+
+
+# Sup Figure 2F BMPC vs Xenium and IMC percentages -----------------------------------------------------------
+
+
+metadata_patients <- read.xlsx("~//Xenium_Patient_Metadata.xlsx")
+
+metadata_patients$BMPC
+metadata_patients$PCPC_Xenium
+metadata_patients$PCPC_IMC
+metadata_patients$Stage
+
+status_colors <- c(  #fir annot even less broad
+  
+  "CBM" = "#46F0F0",
+  "IMC_CBM" = "#46F0F0",
+  "SMM" = "#4575B4",              # Macrophages
+  "NDMM" = "#FF7F00", 
+  "IMC_NDMM" = "#46F0F0",
+  "pPCL" = "#D73027",
+  "RRMM" = "#984EA3" #New: yellow
+)
+
+
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(patchwork)
+
+# --- prep ---
+metadata_patients <- metadata_patients %>%
+  mutate(
+    BMPC = as.numeric(BMPC),
+    BMPC_Xenium = as.numeric(PCPC_Xenium),
+    BMPC_IMC = as.numeric(PCPC_IMC),
+    Patient = rownames(.) %||% paste0("P", row_number()),
+    MD_stage = as.factor(Stage)   # adjust name if needed
+  )
+
+# --- Plot 1: BMPC vs Xenium ---
+df_xenium <- metadata_patients %>%
+  select(Patient, MD_stage, BMPC, BMPC_Xenium) %>%
+  pivot_longer(cols = c(BMPC, BMPC_Xenium),
+               names_to = "Type", values_to = "Value")
+
+p_xenium <- ggplot(df_xenium,
+                   aes(x = Type, y = Value, group = Patient, color = MD_stage)) +
+  geom_line(alpha = 0.4, color = "grey70") +
+  geom_point(size = 2.5) +
+  scale_color_manual(values = status_colors) +
+  theme_minimal(base_size = 14) +
+  labs(title = "BMPC vs Xenium", x = "", y = "BMPC")
+
+# --- Plot 2: BMPC vs IMC ---
+df_imc <- metadata_patients %>%
+  select(Patient, MD_stage, BMPC, BMPC_IMC) %>%
+  pivot_longer(cols = c(BMPC, BMPC_IMC),
+               names_to = "Type", values_to = "Value")
+
+p_imc <- ggplot(df_imc,
+                aes(x = Type, y = Value, group = Patient, color = MD_stage)) +
+  geom_line(alpha = 0.4, color = "grey70") +
+  geom_point(size = 2.5) +
+  scale_color_manual(values = status_colors) +
+  theme_minimal(base_size = 14) +
+  labs(title = "BMPC vs IMC", x = "", y = "BMPC")
+
+# --- Plot 3: all three (BMPC, Xenium, IMC) ---
+df_all <- metadata_patients %>%
+  select(Patient, MD_stage, BMPC, BMPC_Xenium, BMPC_IMC) %>%
+  pivot_longer(cols = c(BMPC, BMPC_Xenium, BMPC_IMC),
+               names_to = "Type", values_to = "Value")
+
+p_all <- ggplot(df_all,
+                aes(x = Type, y = Value, group = Patient, color = MD_stage)) +
+  geom_line(alpha = 0.4, color = "grey50") +
+  geom_point(size = 2.5) +
+  scale_color_manual(values = status_colors) +
+  theme_minimal(base_size = 14) +
+  labs(title = "BMPC vs Xenium vs IMC", x = "", y = "BMPC")
+p_all
+# show
+plot <- p_xenium + p_imc + p_all
+plot
+
+
+
+library(ggplot2)
+library(ggpubr)
+
+p1 <- ggplot(metadata_patients, aes(x = BMPC, y = BMPC_Xenium, color = MD_stage)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  stat_cor(aes(group = 1), method = "spearman") +
+  theme_minimal(base_size = 14) +
+  labs(title = "BMPC vs Xenium", x = "Clinical BMPC", y = "Xenium BMPC")
+
+p2 <- ggplot(metadata_patients, aes(x = BMPC, y = BMPC_IMC, color = MD_stage)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  stat_cor(aes(group = 1), method = "spearman") +
+  theme_minimal(base_size = 14) +
+  labs(title = "BMPC vs IMC", x = "Clinical BMPC", y = "IMC BMPC")
+
+p3 <- ggplot(metadata_patients, aes(x = BMPC_Xenium, y = BMPC_IMC, color = MD_stage)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  stat_cor(aes(group = 1), method = "spearman") +
+  theme_minimal(base_size = 14) +
+  labs(title = "Xenium vs IMC", x = "Clinical BMPC", y = "IMC BMPC")
+
+
+plot <- p1 + p2 + p3
+plot
+
+
+fit <- lm(BMPC_Xenium ~ BMPC, data = metadata_patients)
+coef(fit)
+
+library(ggplot2)
+library(ggpubr)
+library(patchwork)
+
+make_plot <- function(df, xvar, yvar, title, xlabel, ylabel) {
+  
+  fit <- lm(reformulate(xvar, yvar), data = df)
+  slope <- round(coef(fit)[2], 2)
+  
+  ggplot(df, aes_string(x = xvar, y = yvar, color = "MD_stage")) +
+    geom_point(size = 3) +
+    scale_color_manual(values = status_colors) +
+    geom_smooth(method = "lm", se = FALSE, color = "black") +
+    stat_cor(
+      aes(group = 1),
+      method = "spearman",
+      label.x.npc = "left",
+      label.y.npc = "top"
+    ) +
+    annotate(
+      "text",
+      x = Inf,
+      y = Inf,
+      label = paste0("Slope = ", slope, "x"),
+      hjust = 1.1,
+      vjust = 3,
+      size = 5
+    ) +
+    theme_minimal(base_size = 14) +
+    labs(
+      title = title,
+      x = xlabel,
+      y = ylabel
+    )
+}
+
+p1 <- make_plot(
+  metadata_patients,
+  "BMPC",
+  "BMPC_Xenium",
+  "BMPC vs Xenium",
+  "Clinical BMPC",
+  "Xenium BMPC"
+)
+
+p2 <- make_plot(
+  metadata_patients,
+  "BMPC",
+  "BMPC_IMC",
+  "BMPC vs IMC",
+  "Clinical BMPC",
+  "IMC BMPC"
+)
+
+p3 <- make_plot(
+  metadata_patients,
+  "BMPC_IMC",
+  "BMPC_Xenium",
+  "IMC vs Xenium",
+  "IMC BMPC",
+  "Xenium BMPC"
+)
+
+plot <- p1 + p2 + p3
+plot
+
+
 
 
 
@@ -6183,7 +6485,319 @@ print(plot)
 dev.off()
 
 
-# Sup Figure 4A IMC data UMAP ---------------------------
+
+# Sup Figure 4 IMC annotation images --------------------------------------
+
+
+
+
+# --- 1. ZOOM: bottom-right corner (adjust fraction if needed) ---
+meta <- as.data.frame(colData(spe_IMC_combined))
+
+x_cut <- quantile(meta$x, 0.75, na.rm = TRUE)
+y_cut <- quantile(meta$y, 0.25, na.rm = TRUE)
+
+zoom_idx <- meta$x >= x_cut & meta$y <= y_cut
+spe_zoom <- spe_IMC_combined[, zoom_idx]
+
+meta_zoom <- as.data.frame(colData(spe_IMC_combined))
+
+
+ct_col <- "cluster_celltype_integr_202511_good_MKC_CD14_CD34_IL33_sep"
+meta_zoom[[ct_col]] <- as.character(meta_zoom[[ct_col]])
+
+# --- 2. NEW ANNOTATIONS ---
+
+
+meta_zoom$anno_DNA <- ifelse(
+  meta_zoom[[ct_col]] %in% c("XX"),
+  meta_zoom[[ct_col]],
+  "Cells"
+)
+
+
+
+## (A) CD4 / CD8 focus
+meta_zoom$anno_Tcells <- ifelse(
+  meta_zoom[[ct_col]] %in% c("CD4 T Cell", "CD8 T Cell"),
+  meta_zoom[[ct_col]],
+  "Other"
+)
+
+## (B) Myeloid focus
+meta_zoom$anno_myeloid <- ifelse(
+  meta_zoom[[ct_col]] %in% c("HLA-DR Cell", "Macrophage", "CD14 Monocyte"),
+  meta_zoom[[ct_col]],
+  "Other"
+)
+
+## (B) Myeloid focus
+meta_zoom$anno_neutrophil <- ifelse(
+  meta_zoom[[ct_col]] %in% c("Neutrophil", "Neutrophil Progenitor"),
+  meta_zoom[[ct_col]],
+  "Other"
+)
+
+## (C) Stromal / structural focus
+meta_zoom$anno_stroma <- ifelse(
+  meta_zoom[[ct_col]] %in% c(
+    "CD105 structural cells",
+    "CD34 structural cells",
+    "CD34 IL33 structural cells",
+    "IL33 structural cells3",
+    "Endothelial/MKC"
+  ),
+  meta_zoom[[ct_col]],
+  "Other"
+)
+
+## (D) Plasma focus
+meta_zoom$anno_plasma <- ifelse(
+  meta_zoom[[ct_col]] %in% c("Plasma Cell"),
+  meta_zoom[[ct_col]],
+  "Other"
+)
+
+# write back
+colData(spe_IMC_combined) <- S4Vectors::DataFrame(meta_zoom)
+
+# --- 3. COLOR SCHEMES ---
+Cols_Cells <- c(
+  "Cells"      = "grey80"
+)
+
+## T cells
+cols_T <- c(
+  "CD8 T Cell" = "#FA7921",
+  "CD4 T Cell" = "#FFE66D",
+  "Other"      = "grey80"
+)
+
+## T cells
+cols_T_option2 <- c(
+  "CD8 T Cell" = "green",
+  "CD4 T Cell" = "#c51b8a",
+  "Other"      = "grey80"
+)
+
+
+## Myeloid
+cols_neutrophil <- c(
+  "Neutrophil"    = "#413694",
+  "Neutrophil Progenitor" = "#c51b8a",
+  "Other"         = "grey80"
+)
+
+## Myeloid
+cols_neutrophil_option2 <- c(
+  "Neutrophil Progenitor"    = "#00BFFF",
+  "Neutrophil" = "#c51b8a",
+  "Other"         = "grey80"
+)
+
+## Myeloid
+cols_myeloid <- c(
+  "HLA-DR Cell"    = "#FA7921",
+  "Macrophage"    = "#005BFF",
+  "CD14 Monocyte" = "#c51b8a",
+  "Other"         = "grey80"
+)
+
+## Myeloid
+cols_myeloid_option2 <- c(
+  "HLA-DR Cell"    = "green",
+  "Macrophage"    = "#00BFFF",
+  "CD14 Monocyte" = "red",
+  "Other"         = "grey80"
+)
+
+
+cols_stroma <- c(
+  "CD105 structural cells"     = "#1f78b4",  # blue
+  "CD34 structural cells"      = "#33a02c",  # green
+  "CD34 IL33 structural cells" = "#e31a1c",  # red
+  "IL33 structural cells3"     = "#ff7f00",  # orange
+  "Endothelial/MKC"            = "#6a3d9a",  # purple
+  "Other"                      = "grey85"
+)
+
+cols_stroma_option2 <- c(
+  "CD105 structural cells"     = "#413694",  # blue
+  "CD34 structural cells"      = "#e31a1c",  # green
+  "CD34 IL33 structural cells" = "#ff7f00",  # red
+  "IL33 structural cells3"     = "yellow",  # orange
+  "Endothelial/MKC"            = "#00BFFF",  # purple
+  "Other"                      = "grey85"
+)
+
+
+cols_plasma <- c(
+  "Plasma Cell" = "#e31a1c",  # red
+  "Other"                      = "grey85"
+)
+
+
+# --- 4. PLOTTING ---
+pdf("IMC_20240321_a5_cells_without_annot.pdf", width = 8, height = 6, useDingbats = FALSE)
+plotCells(
+  cur_masks,
+  object = spe_IMC_combined,
+  cell_id = "ObjectNumber",
+  outline_by = "patient_id",
+  img_id = "ROI_or_Image",
+  colour_by = "anno_DNA",
+  colour = list(anno_DNA = Cols_Cells, 
+                patient_id = metadata(spe_IMC_combined)$color_vectors$patient_id),
+  thick = F
+)
+dev.off()
+
+
+
+## T cells zoom
+pdf("IMC_20240321_a5_Tcells.pdf", width = 8, height = 6, useDingbats = FALSE)
+plotCells(
+  cur_masks,
+  object = spe_IMC_combined,
+  cell_id = "ObjectNumber",
+  img_id = "ROI_or_Image",
+  colour_by = "anno_Tcells",
+  colour = list(anno_Tcells = cols_T),
+  thick = FALSE
+)
+dev.off()
+
+pdf("IMC_20240321_a5_Tcells_option2.pdf", width = 8, height = 6, useDingbats = FALSE)
+plotCells(
+  cur_masks,
+  object = spe_IMC_combined,
+  cell_id = "ObjectNumber",
+  outline_by = "patient_id",
+  img_id = "ROI_or_Image",
+  colour_by = "anno_Tcells",
+  colour = list(anno_Tcells = cols_T_option2, 
+                patient_id = metadata(spe_IMC_combined)$color_vectors$patient_id),
+  thick = F
+)
+dev.off()
+
+
+pdf("IMC_20240321_a5_myeloid.pdf", width = 8, height = 6, useDingbats = FALSE)
+## Myeloid zoom
+plotCells(
+  cur_masks,
+  object = spe_IMC_combined,
+  cell_id = "ObjectNumber",
+  img_id = "ROI_or_Image",
+  colour_by = "anno_myeloid",
+  colour = list(anno_myeloid =cols_myeloid ),
+  thick = FALSE
+)
+dev.off()
+
+pdf("IMC_20240321_a5_myeloid_option2.pdf", width = 8, height = 6, useDingbats = FALSE)
+## Myeloid zoom
+plotCells(
+  cur_masks,
+  object = spe_IMC_combined,
+  cell_id = "ObjectNumber",
+  img_id = "ROI_or_Image",
+  colour_by = "anno_myeloid",
+  outline_by = "patient_id",
+  colour = list(anno_myeloid = cols_myeloid_option2, 
+                patient_id = metadata(spe_IMC_combined)$color_vectors$patient_id),
+  thick = FALSE
+)
+dev.off()
+
+pdf("IMC_20240321_a5_neutro.pdf", width = 8, height = 6, useDingbats = FALSE)
+## Myeloid zoom
+plotCells(
+  cur_masks,
+  object = spe_IMC_combined,
+  cell_id = "ObjectNumber",
+  img_id = "ROI_or_Image",
+  colour_by = "anno_neutrophil",
+  colour = list(anno_neutrophil = cols_neutrophil),
+  thick = FALSE
+)
+dev.off()
+
+pdf("IMC_20240321_a5_neutro_option2.pdf", width = 8, height = 6, useDingbats = FALSE)
+## Myeloid zoom
+plotCells(
+  cur_masks,
+  object = spe_IMC_combined,
+  cell_id = "ObjectNumber",
+  img_id = "ROI_or_Image",
+  colour_by = "anno_neutrophil",
+  outline_by = "patient_id",
+  colour = list(anno_neutrophil = cols_neutrophil_option2, 
+                patient_id = metadata(spe_IMC_combined)$color_vectors$patient_id),
+  thick = FALSE
+)
+dev.off()
+
+pdf("IMC_20240321_a5_stromal.pdf", width = 8, height = 6, useDingbats = FALSE)
+## Stromal zoom
+plotCells(
+  cur_masks,
+  object = spe_IMC_combined,
+  cell_id = "ObjectNumber",
+  img_id = "ROI_or_Image",
+  colour_by = "anno_stroma",
+  colour = list(anno_stroma = cols_stroma),
+  thick = FALSE
+)
+dev.off()
+
+pdf("IMC_20240321_a5_stromal_option2.pdf", width = 8, height = 6, useDingbats = FALSE)
+## Stromal zoom
+plotCells(
+  cur_masks,
+  object = spe_IMC_combined,
+  cell_id = "ObjectNumber",
+  img_id = "ROI_or_Image",
+  colour_by = "anno_stroma",
+  outline_by = "patient_id",
+  colour = list(anno_stroma = cols_stroma_option2, 
+                patient_id = metadata(spe_IMC_combined)$color_vectors$patient_id),
+  thick = FALSE
+)
+dev.off()
+
+
+pdf("IMC_20240321_a5_plasma.pdf", width = 8, height = 6, useDingbats = FALSE)
+## Stromal zoom
+plotCells(
+  cur_masks,
+  object = spe_IMC_combined,
+  cell_id = "ObjectNumber",
+  img_id = "ROI_or_Image",
+  colour_by = "anno_plasma",
+  colour = list(anno_plasma = cols_plasma),
+  thick = FALSE
+)
+dev.off()
+
+pdf("IMC_20240321_a5_plasma_option2.pdf", width = 8, height = 6, useDingbats = FALSE)
+## Stromal zoom
+plotCells(
+  cur_masks,
+  object = spe_IMC_combined,
+  cell_id = "ObjectNumber",
+  img_id = "ROI_or_Image",
+  colour_by = "anno_plasma",
+  outline_by = "patient_id",
+  colour = list(anno_plasma = cols_plasma, 
+                patient_id = metadata(spe_IMC_combined)$color_vectors$patient_id),
+  thick = FALSE
+)
+dev.off()
+
+
+
+# Sup Figure 5B IMC data Heatmap ---------------------------
 
 # Load necessary libraries
 library(ggplot2)
@@ -6205,47 +6819,6 @@ library(scater)
 library(patchwork)
 library(cowplot)
 library(viridis)
-
-
-
-plot <- dittoDimPlot(spe_IMC, 
-                     var = "cluster_celltype_integrated_202511_good_MKC_CD14_seperate", 
-                     reduction.use = "UMAP_harmony", 
-                     size = 0.2,
-                     do.label = TRUE) +
-  scale_color_manual(values = celltype_colors_IMC) 
-#theme(legend.title = element_blank()) +
-plot
-
-pdf(file= file.path(output_dir,"Sup_Figure_5","IMC_UMAP_2.pdf"), 
-    width = 15, height = 8, useDingbats = FALSE, onefile = FALSE)
-print(plot)
-dev.off()
-
-plot2 <- dittoDimPlot(spe_IMC, 
-                      var = "cluster_celltype_integrated_202511_good_MKC_CD14_seperate", 
-                      reduction.use = "UMAP_harmony", 
-                      size = 0.2,
-                      do.label = TRUE,
-                      do.raster = TRUE) +
-  scale_color_manual(values = celltype_colors_IMC) 
-#theme(legend.title = element_blank()) +
-plot2
-
-
-#Create the plot and rasterize points
-# Rasterize all point layers in the plot
-plot2 <- ggrastr::rasterise(plot, layers = "geom_point", dpi = 300)
-plot2
-
-# Save to PDF
-pdf(file = file.path(output_dir, "Sup_Figure_5", "IMC_UMAP_lowerres.pdf"), 
-    width = 15, height = 8, useDingbats = FALSE, onefile = FALSE)
-print(plot2)
-dev.off()
-
-
-# Sup Figure 4B IMC data Heatmap ---------------------------
 
 
 # 1️⃣ Channels to use (exclude certain markers)
@@ -6309,39 +6882,9 @@ print(plot2)
 dev.off()
 
 
-# Sup Figure 4C patient overview -------------------------------------------
 
 
-library(dplyr)
-library(ggplot2)
-
-## run first the code above
-
-#meta_df2 <- as.data.frame(meta_df2)
-
-plot_df <- meta_df2 %>%
-  distinct(patient_id, Status_simp_2, shared_patient) %>%   # count patients uniquely
-  count(Status_simp_2, shared_patient, name = "n")
-
-plot <- ggplot(plot_df, aes(x = Status_simp_2, y = n, fill = shared_patient)) +
-  geom_col(position = "stack") +
-  labs(
-    x = "Status",
-    y = "Number of patients",
-    fill = "Run on ST Xenium platform"
-  ) +
-  theme_classic()
-
-plot
-
-pdf(file= file.path(output_dir,"Sup_Figure_5","IMC_patient_overview.pdf"), 
-    width = 6, height = 7, useDingbats = FALSE, onefile = FALSE)
-print(plot)
-dev.off()
-
-
-
-# Sup Figure 4D IMC data barplot per tumor region ---------------------------
+# Sup Figure 5C IMC data barplot per tumor region ---------------------------
 
 
 meta_df <- colData(spe_IMC)
@@ -6398,7 +6941,7 @@ print(plot)
 dev.off()
 
 
-# Sup Figure 4E IMC data barplot combined ---------------------------
+# Sup Figure 5D IMC data barplot combined ---------------------------
 
 
 meta_df <- Xenium_Object_Seurat @meta.data
@@ -6799,7 +7342,7 @@ dev.off()
 
 
 
-# Sup Figure 4F IMC data barplot combined same patients ---------------------------
+# Sup Figure 5E IMC data barplot combined same patients ---------------------------
 
 
 library(dplyr)
@@ -6988,17 +7531,504 @@ plot <- ggplot(df_plot, aes(x = ObjectName_Technique, y = proportion, fill = clu
 
 plot
 
-pdf(file= file.path(output_dir,"Sup_Figure_5","IMC_and_Xenium_combined_tumor_grouped_barplot_shared_flipeed.pdf"), 
+pdf(file= file.path(output_dir,"Sup_Figure_4","IMC_and_Xenium_combined_tumor_grouped_barplot_shared_flipeed.pdf"), 
+    width = 15, height = 5, useDingbats = FALSE, onefile = FALSE)
+print(plot)
+dev.off()
+
+# Sup Figure 5F IMC masks visualization -----------------------------------------------
+
+masks <- readRDS('/masks.rds')
+
+# Sample images
+set.seed(220517)
+cur_id <- c("NDMM_4_6") 
+cur_masks <- masks[names(masks) %in% cur_id]
+
+
+#without segmentation
+plotCells(cur_masks,
+          object = spe  ,  
+          cell_id = "Cell_number", img_id = "Patient_ImageNumber_correct", 
+          colour_by = "annotation_IMC") 
+
+## with visible segmentation
+plot <- plotCells(cur_masks, image_title=NULL, scale_bar = NULL, 
+          object = spe, 
+          cell_id = "ObjectNumber", img_id = "Patient_ImageNumber_correct", thick = F, outline_by = "Patient_name", 
+          colour_by = "annotation_IMC", 
+          colour = list(annotation_IMC = metadata(annotation_IMC)$color_vectors$celltype, 
+                        Patient_name = metadata(spe)$color_vectors$Patient_name ))
+
+pdf(file= file.path(output_dir,"Sup_Figure_4","masks_ROI_NDMM_4_6.pdf"), 
     width = 15, height = 5, useDingbats = FALSE, onefile = FALSE)
 print(plot)
 dev.off()
 
 
 
-# Sup Figure 5 A-D Volcanoplots -----------------------------------------------
+
+# Sup Figure 5I Roseth et al tumor group barplot --------------------------
 
 
 
+density_colors <- c("CBM" = "cyan", "unqualified" = "#4CAF50", "normal" =  "#FFE066", 
+                    "sparse" ="#377EB8","dispersed" ="#B080FF", "dense"= "#D72638")
+
+# Step 1: Extract metadata and filter
+meta_df <- spe_Roseth@colData
+meta_df <- as.data.frame(meta_df)
+
+# Step 2: Select relevant columns (now including disease2)
+df_plot <- meta_df %>%
+  dplyr::select(
+    ObjectName = disease_patient,
+    density_category = final_group,
+    disease2 = disease2
+  )
+
+# Step 3: Calculate proportions
+df_plot <- df_plot %>%
+  group_by(ObjectName, density_category, disease2) %>%
+  tally() %>%  # Count occurrences of each combination
+  ungroup() %>%
+  group_by(ObjectName) %>%
+  mutate(proportion = n / sum(n))  # Calculate proportion within each ObjectName
+
+# Step 4: Calculate ordering score for each ObjectName
+ordering_df <- df_plot %>%
+  group_by(ObjectName) %>%
+  summarise(
+    dense_prop = sum(proportion[density_category == "dense"], na.rm = TRUE),
+    dispersed_prop = sum(proportion[density_category == "dispersed"], na.rm = TRUE),
+    sparse_prop = sum(proportion[density_category == "sparse"], na.rm = TRUE),
+    normal_prop = sum(proportion[density_category == "normal"], na.rm = TRUE),
+    disease2 = dplyr::first(disease2)  # Keep disease2 info
+  ) %>%
+  # Create ordering score: prioritize by dense (ascending), then dispersed (descending)
+  mutate(order_score = dense_prop * 1000 + dispersed_prop) %>%
+  arrange(order_score)
+
+# Get the ordered patient levels
+patient_order <- ordering_df$ObjectName
+
+# Step 5: Set factor levels for ObjectName
+df_plot$ObjectName_fac <- factor(df_plot$ObjectName, levels = patient_order)
+
+# Step 6: Set factor levels for density categories (in desired legend order)
+df_plot$cluster_factor <- factor(
+  df_plot$density_category,
+  levels = c("unqualified", "normal", "sparse", "dispersed", "dense")
+)
+
+# Step 7: Define colors for disease2 categories
+# Adjust these colors as needed for your disease2 categories
+disease2_colors <- c(
+  "MM_BD" = "#E41A1C",      # Red
+  "MM_noBD" = "#377EB8",       # Blue
+  "MGUS" = "#4DAF4A",       # Green
+  "SMM" = "#984EA3",       # Purple
+  "Relapse" = "#FF7F00"    # Orange
+  # Add more categories as needed
+)
+
+# Create a named vector mapping each patient to their disease2 color
+patient_disease2 <- ordering_df %>%
+  select(ObjectName, disease2) %>%
+  left_join(data.frame(disease2 = names(disease2_colors), 
+                       color = disease2_colors), 
+            by = "disease2")
+
+# Create color vector for x-axis labels in the correct order
+label_colors <- patient_disease2$color
+names(label_colors) <- patient_disease2$ObjectName
+
+# Step 8: Create the plot
+plot <- ggplot(df_plot, aes(x = ObjectName_fac, y = proportion, fill = cluster_factor)) +
+  geom_bar(stat = "identity", position = "fill") +  # Stacked bar plot
+  scale_fill_manual(values = density_colors) +
+  labs(fill = "Density Category") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 14, 
+                               colour = label_colors[levels(df_plot$ObjectName_fac)]),  # Color labels
+    panel.grid.major = element_blank(),  # Remove major grid lines
+    panel.grid.minor = element_blank(),  # Remove minor grid lines
+    panel.background = element_blank(),  # Remove background
+    axis.title.x = element_blank(),  # Remove x-axis title
+    axis.title.y = element_blank(),  # Remove y-axis title
+    text = element_text(size = 15)
+  )
+
+# Display the plot
+print(plot)
+
+
+
+# Create cleaned patient labels
+
+
+ordering_df2 <- df_plot %>%
+  group_by(ObjectName) %>%
+  summarise(
+    dense_prop = sum(proportion[density_category == "dense"], na.rm = TRUE),
+    dispersed_prop = sum(proportion[density_category == "dispersed"], na.rm = TRUE),
+    sparse_prop = sum(proportion[density_category == "sparse"], na.rm = TRUE),
+    normal_prop = sum(proportion[density_category == "normal"], na.rm = TRUE),
+    disease2 = as.character(dplyr::first(disease2))
+  ) %>%
+  mutate(
+    disease_group = case_when(
+      grepl("MGUS", disease2) ~ "MGUS",
+      grepl("SMM|SM", disease2) ~ "SMM",
+      grepl("MM", disease2) ~ "MM",
+      TRUE ~ "Other"
+    ),
+    
+    disease_group = factor(
+      disease_group,
+      levels = c("MGUS", "SMM", "MM", "Other")
+    ),
+    
+    order_score = dense_prop * 1000 + dispersed_prop,
+    
+    # rename MM_BD_* and MM_noBD_* to MM_*
+    ObjectName_clean = gsub("^MM_(BD|noBD)", "MM", ObjectName)
+  ) %>%
+  arrange(disease_group, order_score)
+
+# ordered patient vector
+patient_order2 <- ordering_df2$ObjectName
+
+# named vector for relabeling
+label_map <- ordering_df2$ObjectName_clean
+names(label_map) <- ordering_df2$ObjectName
+
+# apply ordering
+df_plot$ObjectName_fac2 <- factor(
+  df_plot$ObjectName,
+  levels = patient_order2
+)
+
+
+# Plot
+
+
+plot2 <- ggplot(
+  df_plot,
+  aes(
+    x = ObjectName_fac2,
+    y = proportion,
+    fill = cluster_factor
+  )
+) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_fill_manual(values = density_colors) +
+  scale_x_discrete(labels = label_map) +
+  labs(fill = "Density Category") +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      size = 12,
+      colour = "black"
+    ),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    text = element_text(size = 13)
+  )
+
+print(plot2)
+
+
+pdf(file= file.path("patient_barplot_tumorgroups_ROSETH.pdf"), 
+    width = 20, height = 5, useDingbats = FALSE, onefile = FALSE)
+print(plot2)
+dev.off()
+
+
+
+# Sup Figure 5K-L T cell infiltration -------------------------------------
+
+
+patch_df <- colData(spe_IMC_combined_with202606) %>%
+  as_tibble() %>%
+  filter(!is.na(patch_id)) %>%
+  group_by(ObjectName_anonymous_grouped, patch_id) %>%
+  summarise(
+    patch_size = n(),
+    Tcell_count = sum(celltype_annotation_transfer_with202606_nounderscore %in%
+                        c("CD4 T Cell", "CD8 T Cell")),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Tcell_present = Tcell_count > 0,
+    log_Tcells = log1p(Tcell_count)  # avoids log(0) issue
+  )
+
+library(dplyr)
+library(ggplot2)
+
+plot_df <- patch_df %>%
+  filter(patch_size >= 50) %>%
+  mutate(size_bin = cut(
+    patch_size,
+    breaks = c(25, 50, 100, 250, Inf),
+    include.lowest = TRUE
+  )) %>%
+  group_by(size_bin, Tcell_present) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  group_by(size_bin) %>%
+  mutate(frac = n / sum(n)) %>%
+  ungroup()
+
+p1 <- ggplot(plot_df, aes(x = size_bin, y = frac, fill = Tcell_present)) +
+  geom_col() +
+  geom_text(
+    aes(label = n),
+    position = position_stack(vjust = 0.5),
+    size = 3
+  ) +
+  theme_classic() +
+  labs(
+    x = "Patch size bin",
+    y = "Fraction of patches"
+  )
+p1
+
+pdf(file= file.path(output_dir,"Revision_Figure/T_cell_infil_imc_plot1.pdf"), 
+    width = 8, height = 7, useDingbats = FALSE, onefile = FALSE)
+print(p1)
+dev.off()
+
+
+
+library(colorspace)
+
+dot_colors <- darken(status_colors, amount = 0.35)
+
+p1_b <- ggplot(patch_df, aes(
+  x = ObjectName_anonymous_grouped,
+  y = patch_size
+)) +
+  geom_boxplot(
+    aes(fill = status),
+    outlier.shape = NA,
+    alpha = 0.8
+  ) +
+  geom_jitter(
+    aes(color = status),
+    width = 0.15,
+    alpha = 0.6,
+    size = 1.5
+  ) +
+  scale_y_log10() +
+  scale_fill_manual(values = status_colors) +
+  scale_color_manual(values = dot_colors) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  labs(
+    x = NULL,
+    y = "Patch size (# cells, log10 scale)",
+    fill = "status",
+    color = "status"
+  )
+
+p1_b
+
+pdf(file= file.path(output_dir,"Revision_Figure/T_cell_infil_imc_plot2.pdf"), 
+    width = 8, height = 7, useDingbats = FALSE, onefile = FALSE)
+print(p1_b)
+dev.off()
+
+
+library(dplyr)
+library(ggplot2)
+
+library(dplyr)
+library(ggplot2)
+
+df <- colData(spe_IMC_combined_with202606) %>% 
+  as_tibble() %>%
+  filter(!is.na(patch_id)) %>%
+  group_by(patch_id, ROI_or_Image) %>%
+  summarise(
+    Tcell_count = sum(celltype_annotation_transfer_with202606_nounderscore %in%
+                        c("CD8 T Cell", "CD4 T Cell")),
+    patch_size = n(),
+    .groups = "drop"
+  ) %>%
+  filter(patch_size >= 25)
+
+# log-log model using log1p (handles zeros)
+fit <- lm(log10(Tcell_count + 1) ~ log10(patch_size), data = df)
+slope <- coef(fit)[2]
+
+label_text <- paste0("slope = ", round(slope, 3))
+
+p2 <- ggplot(df, aes(x = patch_size, y = Tcell_count + 1)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  scale_x_log10() +
+  scale_y_log10() +
+  theme_classic() +
+  labs(
+    x = "Patch size",
+    y = "T cell count (+1)"
+  ) +
+  annotate(
+    "text",
+    x = Inf,
+    y = Inf,
+    label = label_text,
+    hjust = 1.1,
+    vjust = 1.5,
+    size = 4
+  )
+
+p2
+
+pdf(file= file.path(output_dir,"Revision_Figure/T_cell_infil_imc_plot3.pdf"), 
+    width = 8, height = 7, useDingbats = FALSE, onefile = FALSE)
+print(p2)
+dev.off()
+
+
+
+
+df <- colData(spe_IMC_combined_with202606) %>% 
+  as_tibble() %>%
+  filter(!is.na(patch_id)) %>%
+  group_by(patch_id, ROI_or_Image, patient_id) %>%
+  summarise(
+    Tcell_count = sum(celltype_annotation_transfer_with202606_nounderscore %in%
+                        c("CD8 T Cell", "CD4 T Cell")),
+    patch_size = n(),
+    .groups = "drop"
+  ) %>%
+  filter(patch_size >= 25) %>%
+  mutate(
+    Tcell_present = Tcell_count > 0,
+    Tcell_ratio = Tcell_count / patch_size
+  )
+
+
+# 3. RATIO (your requested version)
+p3 <- ggplot(df, aes(x = patch_size, y = Tcell_ratio)) +
+  geom_point(alpha = 0.3, size = 1,
+             position = position_jitter(width = 0.1, height = 0)) +
+  #geom_smooth(method = "lm", se = FALSE, color = "black") +
+  scale_x_log10() +
+  scale_y_continuous(limits = c(0, 0.15)) +
+  theme_classic() +
+  labs(x = "Patch size", y = "T cell ratio")
+
+p3
+
+pdf(file= file.path(output_dir,"Revision_Figure/T_cell_infil_imc_plot4.pdf"), 
+    width = 8, height = 9, useDingbats = FALSE, onefile = FALSE)
+print(p3)
+dev.off()
+
+
+df <- colData(spe_IMC_combined_with202606) %>% 
+  as_tibble() %>%
+  filter(!is.na(patch_id)) %>%
+  group_by(patch_id, ROI_or_Image, patient_id) %>%
+  summarise(
+    Tcell_count = sum(celltype_annotation_transfer_with202606_nounderscore %in%
+                        c("CD8 T Cell", "CD4 T Cell")),
+    
+    plasma_count = sum(celltype_annotation_transfer_with202606_nounderscore == "Plasma Cell"),
+    
+    patch_size = n(),
+    .groups = "drop"
+  ) %>%
+  filter(patch_size >= 25) %>%
+  mutate(
+    non_pc_cells = patch_size - plasma_count,
+    Tcell_ratio_nonPC = ifelse(non_pc_cells > 0,
+                               Tcell_count / non_pc_cells,
+                               NA_real_)
+  )
+
+
+# 3. RATIO (your requested version)
+p4 <- ggplot(df, aes(x = patch_size, y = Tcell_ratio_nonPC)) +
+  geom_point(alpha = 0.3, size = 1,
+             position = position_jitter(width = 0.1, height = 0)) +
+  #geom_smooth(method = "lm", se = FALSE, color = "black") +
+  scale_x_log10() +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_classic() +
+  labs(x = "Patch size", y = "T cell ratio")
+
+p4
+
+pdf(file= file.path(output_dir,"Revision_Figure/T_cell_infil_imc_plot5.pdf"), 
+    width = 8, height = 7, useDingbats = FALSE, onefile = FALSE)
+print(p4)
+dev.off()
+
+
+
+# Sup Figure 6A SEC vs AEC -----------------------------------------------------------
+
+
+Idents(integrated_seurat_all      ) <- integrated_seurat_all    @meta.data$annot_merged_final_with_macro_noslash_dis_lowquali_correct_correct_IFNsubdiv_for_s_curves
+markers <- FindMarkers(integrated_seurat_all  , assay = "SCT", ident.1 = "SEC", ident.2 = "AEC" )
+#markers_umap_clustered_filt <- markers_umap_clustered[!markers_umap_clustered$gene %in% tumor_genes,]
+write.csv(markers , "markers_and_otherCSVfiles/SEC_vs_AEC.csv")
+
+# Define thresholds
+sig_threshold <- 0.05
+logfc_threshold <- 0.25
+
+
+aec_vs_sec <- read.csv("~SEC_vs_AEC.csv")
+
+
+p  <- make_volcano_plot(
+  data        = aec_vs_sec,
+  log2fc_col  = "avg_log2FC",
+  padj_col    = "p_val_adj",
+  gene_col    = "X",  # use rownames as gene names, or set to your gene column name
+  up_label    = "SEC",
+  down_label  = "AEC",
+  other_label = "Not significant",
+  padj_cut    = 0.05,
+  fc_cut      = 0.25,
+  color_up    = "#D82638",
+  color_down  = "#397FB9", 
+  color_other = "#D9D9D9",
+  title       = "SEC vs AEC",
+  #subtitle    = ct,
+  label_all_sig = FALSE,
+  # label_genes   = labels_filtered,   # only label these if significant
+  label_top_n   = 20,
+  max_overlaps  = 50,
+  # or FALSE + label_top_n = 50
+  seed        = 123
+)
+print(p)
+
+
+# Create PDF for all volcano plots
+pdf("~/Volcano_plots_AEC_vs_SEC_findmarkers.pdf", width = 8, height = 6)
+print(p)
+dev.off()
+
+
+
+# Sup Figure 8A scatterplot -----------------------------------------------
+
+#see figure 1E
+
+# Sup Figure 8B-E Volcanoplots -----------------------------------------------
 
 combined_DEG <- readRDS("~/DEG_not_pseudobulk.rds")
 
@@ -7035,7 +8065,785 @@ print(volcano_ctcvsbm)
 dev.off()
 
 
-# Sup Figure 6D CN SMM ---------------------------------------------------------------
+
+
+# Sup Figure 8F CN IMC ----------------------------------------------------
+
+
+
+for_plot <- prop.table(table(spe_IMC_combined_with202606$cn_celltypes_12_named, as.character(spe_IMC_combined_with202606$celltype)), margin = 1)
+
+niche_counts <- table(spe_IMC_combined_with202606$cn_celltypes_12_named)
+neighborhood_percentage <- niche_counts / sum(niche_counts) * 100
+# Step 2: Create a data frame for row annotation (with the percentage of the neighborhood size)
+row_annotation <- data.frame(Neighborhood_Percentage = neighborhood_percentage)
+# Convert row_annotation to a named vector
+neighborhood_percentage_vector <- setNames(row_annotation$Neighborhood_Percentage.Freq, row_annotation$Neighborhood_Percentage.Var1)
+row_annotation_df <- data.frame(Neighborhood_Percentage = neighborhood_percentage_vector)
+
+plot <- pheatmap( for_plot,
+                  color = colorRampPalette(c("dark blue", "white", "dark red"))(100), 
+                  scale = "column",
+                  annotation_row = row_annotation_df,  # tilt column labels
+                  border_color = NA,
+                  angle_col = 45  # tilt column labels
+)
+plot
+
+pdf("~/SPE_neighborhoods_all_combined.pdf", width = 10, height = 5)
+plot
+dev.off()
+
+
+# Sup Figure 9A patient Overview ------------------------------------------
+
+
+
+df <- tribble(
+  ~dataset,        ~CBM, ~SMM, ~NDMM, ~PCL, ~Relapse, ~MGUS,
+  "Koops Xenium",   5,    4,     5,     3,     3,      0,
+  "Yip Xenium",     4,    5,    10,     0,     0,      0,
+  "Koops IMC",      5,    4,    14,     4,     3,      0,
+  "Roseth IMC",     0,    6,    65,     0,     0,      5
+)
+
+patient_df <- df %>%
+  pivot_longer(
+    cols = -dataset,
+    names_to = "group",
+    values_to = "n"
+  ) %>%
+  filter(n > 0) %>%
+  uncount(n)
+
+patient_df$group <- factor(
+  patient_df$group,
+  levels = c("CBM", "MGUS", "SMM", "NDMM", "PCL", "Relapse")
+)
+
+patient_df$dataset <- factor(
+  patient_df$dataset,
+  levels = c(
+    "Koops Xenium",
+    "Yip Xenium",
+    "Koops IMC",
+    "Roseth IMC"
+  )
+)
+
+ncol_waffle <- 10
+
+status_colors <- c(
+  
+  "CBM" = "#46F0F0",
+  "IMC_CBM" = "#46F0F0",
+  
+  "MGUS" = "#66A61E",   # green
+  
+  "SMM" = "#4575B4",
+  "NDMM" = "#FF7F00",
+  "IMC_NDMM" = "#46F0F0",
+  
+  "PCL" = "#D73027",
+  "Relapse" = "#984EA3"
+)
+
+
+patient_df <- patient_df %>%
+  group_by(dataset) %>%
+  arrange(group, .by_group = TRUE) %>%
+  mutate(
+    patient_id = row_number(),
+    x = ((patient_id - 1) %% ncol_waffle) + 1,
+    y = -((patient_id - 1) %/% ncol_waffle)
+  ) %>%
+  ungroup()
+
+plot <- ggplot(patient_df,
+               aes(x = x, y = y, fill = group)) +
+  geom_tile(
+    width = 0.9,
+    height = 0.9,
+    color = "white",
+    linewidth = 0.3
+  ) +
+  facet_grid(
+    dataset ~ .,
+    scales = "free_y",
+    space = "free_y"
+  ) +
+  scale_fill_manual(values = status_colors
+  ) +
+  labs(fill = NULL) +
+  theme_void(base_size = 14) +
+  theme(
+    strip.text.y = element_text(
+      angle = 0,
+      face = "bold",
+      size = 13
+    ),
+    legend.position = "bottom",
+    panel.spacing.y = unit(0.5, "cm")
+  )
+
+plot
+
+pdf("~/Sup_Figure_9/overview_all_datasets_with_colours2.pdf", width = 8, height = 8)
+plot
+dev.off()
+
+
+
+
+# Sup Figure 9B  YIP dotplot -----------------------------------------------------
+
+
+ordered_yip_harmonized <- c(
+  
+  "Undefined Cell",
+  "Interferon Stimulated Cell",
+  "Erythroid Lineage",
+  
+  "AEC",
+  "SEC",
+  
+  "Osteolineage",
+  "Osteo-Fibroblastic MSC",
+  "MSC",
+  "LEPR MSC",
+  "THY1 MSC",
+  "Adipocyte",
+  
+  "MKC Lineage",
+  
+  "Neutrophil Progenitor",
+  "Immature Neutrophil",
+  "Mature Neutrophil",
+  "Classical Monocyte",
+  "Macrophage",
+  "Conventional DC",
+  "Plasmacytoid DC",
+  
+  
+  "CD8 T Cell",
+  "Activated CD8 T Cell", "NK Cell",
+  "Naive/CM CD4 T Cell",
+  "Treg",
+  
+  "B or Plasma Cell",
+  "Plasma Cell"
+)
+
+
+
+ordered_genes_adjusted <- c(
+  "IL27", "IL12B","DUX4", "IFIT3", "MX1", "ISG15", "ALAS2", "GYPA",
+  "BTNL9","NES", "DNASE1L3", "ENG",  "VWF", "PLVAP", "SEMA3G","STAB1", "SPP1", "BGLAP", "COL1A1",
+  "TNC","RUNX2","CTSK","MMP14","CD44", "COMP", "LEPR","NGFR", "THY1", "NOTCH3","STEAP4",  "APOD", "MGP", "CXCL14",
+  "PLIN4", "ADIPOQ", "LPL", "TIMP4", "MYH11", "ACTA2",
+  "MMRN1", "SELP",
+  "CLC","PGLYRP1", "CPA3", "KIT", "IL1RL1", "CTSG", "ELANE", "MPO","LYZ","CEACAM6",
+  "OLFM4","LTF", "CHIT1", "PADI4", "MMP9",  
+  "FCGR3B","MME", "FCGR2A","CXCR2", "CD14","VCAN", "TNFSF13", "FCGR3A", "CXCR1", "CD163", "C1QC", "CD5L", "HLA-DRA", "CD74", "IRF8","GZMB",
+  "CLEC4C",
+  "CCL4", "CCL5", "CD8A", "GZMA", "CCL3", "CCL3L1", "RGS1","TOX","GZMH", "CD69", "PRF1", "KLRD1", "IL2RB",
+  "KLRB1", "CD247",  "IL7R","IL10RA", "NELL2", "TCF7", "CD4", "CCR4","CTLA4",
+  "FOXP3",
+  "MS4A1", "CD19", "STMN1", "MKI67", "SSR4", "SDC1", "PRDM1","SLAMF7", "IRF4"
+)
+
+Idents(complete_yip ) <- complete_yip @meta.data$annot_harmonized
+dotplot_df <- DotPlot(complete_yip   ,features = ordered_genes_adjusted, assay = "RNA")
+dot_data <- dotplot_df$data
+#dot_data$id <- factor(dot_data$id, levels = cluster_colors) #choose!
+dot_data$id_factor <- factor(dot_data$id, levels = ordered_yip_harmonized) #choose!
+
+library(ggplot2)
+
+plot <- ggplot(dot_data, aes(x = id_factor, y = features.plot)) +
+  geom_point(aes(size = pct.exp, color = avg.exp.scaled)) +
+  scale_color_gradient(low = "lightblue", high = "firebrick") +
+  #scale_color_viridis_c(option = "C")  # or "C", "B", "A"
+  #facet_grid(. ~ broader, scales = "free_x", space = "free_x") +
+  theme_minimal() +
+  coord_flip()+
+  theme(
+    axis.text.x = element_text(size = 16, angle = 45, hjust = 1),  # Cluster names
+    axis.text.y = element_text(size = 16, face = "italic")         # Gene names
+  )+
+  #theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Cluster", y = "Gene", color = "Avg Expr (scaled)", size = "% expressed")
+
+plot
+
+pdf(file= file.path(output_dir,"Sup_8","dotplot_all_YIP.pdf"), 
+    width = 23, height = 8, useDingbats = FALSE, onefile = FALSE)
+print(plot)
+dev.off()
+
+# Sup Figure 9D  YIP patient region barplot -----------------------------------------------------
+
+
+meta_df <- complete_yip@meta.data
+#meta_df_NDMM_SMM_CBM_PCL <- meta_df[meta_df$Status_simp_2 %in% c("NDMM", "SMM", "CBM", "PCL"), ]
+
+
+df_plot <- meta_df %>%
+  dplyr::select(
+    ObjectName = sample_short,
+    annot_evenless_broad_run3 = final_group
+  )
+
+
+# Step 2: Reorder 'annot_MM_HBM_more_simple' based on your custom order
+# Ensure meta_df$cluster_name is a factor ordered by your color vector
+
+
+# Step 3: Calculate proportions
+df_plot <- df_plot %>%
+  group_by(ObjectName, annot_evenless_broad_run3) %>%
+  tally() %>%  # Count occurrences of each combination
+  ungroup() %>%
+  group_by(ObjectName) %>%
+  mutate(proportion = n / sum(n))  # Calculate proportion within each ObjectName
+
+# Ensure ObjectName is a factor with custom order
+sample_order <- c(
+  "Ctrl_1",
+  "Ctrl_2",
+  "Ctrl_3",
+  "Ctrl_4",
+  "MGUS_1",
+  "MGUS_2",
+  "SM_1",
+  "SM_2",
+  "SM_3",
+  "SM_4",
+  "SM_5",
+  "MM_1",
+  "MM_2",
+  "MM_3",
+  "MM_4",
+  "MM_5",
+  "MM_6",
+  "MM_7",
+  "MM_8",
+  "MM_9",
+  "MM_10"
+)
+
+
+df_plot$ObjectName_fac <- factor(df_plot$ObjectName, levels = sample_order)
+
+
+#df_plot$ObjectName <- factor(df_plot$ObjectName, levels = architecture_order)
+
+df_plot <- df_plot %>% filter(!(ObjectName %in% c(NA, "unqualified")))
+
+df_plot$cluster_factor <- factor(
+  df_plot$annot_evenless_broad_run3,        # replace with your actual cluster column
+  levels = names(region_colors)  # order according to the color vector
+)
+
+# join IMC data
+library(dplyr)
+
+plot <- ggplot(df_plot, aes(x = ObjectName_fac, y = proportion, fill = cluster_factor       )) +
+  geom_bar(stat = "identity", position = "fill") +  # Stacked bar plot
+  scale_fill_manual(values = region_colors) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 14),  # Rotate x-axis labels and increase size
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        panel.background = element_blank(),  # Remove background
+        axis.title.x = element_blank(),  # Optional: Remove x-axis title
+        axis.title.y = element_blank(),  # Optional: Remove y-axis title
+        text = element_text(size = 15))#+
+#coord_flip()  # Flip x and y axes  # Customize text size if needed
+plot
+
+pdf(file= file.path(output_dir,"Sup_8/Yip_barplot_patient_groups.pdf"), 
+    width = 12, height = 4, useDingbats = FALSE, onefile = FALSE)
+print(plot)
+dev.off()
+
+
+
+# Sup Figure 9F YIP CN -----------------------------------------------------
+
+
+for_plot <- prop.table(table(spe_yip$cn_celltypes_8_named, as.character(spe_yip$annot_harmonized)), margin = 1)
+
+niche_counts <- table(spe_yip$cn_celltypes_8_named)
+neighborhood_percentage <- niche_counts / sum(niche_counts) * 100
+# Step 2: Create a data frame for row annotation (with the percentage of the neighborhood size)
+row_annotation <- data.frame(Neighborhood_Percentage = neighborhood_percentage)
+# Convert row_annotation to a named vector
+neighborhood_percentage_vector <- setNames(row_annotation$Neighborhood_Percentage.Freq, row_annotation$Neighborhood_Percentage.Var1)
+row_annotation_df <- data.frame(Neighborhood_Percentage = neighborhood_percentage_vector)
+
+plot <- pheatmap( for_plot,
+                  color = colorRampPalette(c("dark blue", "white", "dark red"))(100), 
+                  scale = "column",
+                  annotation_row = row_annotation_df,  # tilt column labels
+                  border_color = NA,
+                  angle_col = 45  # tilt column labels
+)
+plot
+
+pdf(file= file.path(output_dir,"Sup_8/Yip_neighborhood_named.pdf"), 
+    width = 12, height = 6, useDingbats = FALSE, onefile = FALSE)
+print(plot)
+dev.off()
+
+
+
+# Sup Figure 9G YIP dense vs sparse  ----------------------------------------------------------------------
+
+
+meta_df <- complete_yip@meta.data
+metadata_onlynormalsparseanddense <- meta_df[!meta_df$final_group %in% 
+                                               c("unqualified"), ]
+
+
+low_groups <- metadata_onlynormalsparseanddense %>%
+  group_by(sample_short, final_group) %>%
+  summarise(
+    n_regions = n(),
+    .groups = "drop"
+  ) %>%
+  group_by(sample_short) %>%
+  mutate(
+    total_regions = sum(n_regions),
+    prop = n_regions / total_regions
+  ) %>%
+  ungroup() %>%
+  filter(prop < 0.03) %>% ## if a region is less than 3%, it is removed
+  dplyr::select(sample_short, final_group)
+
+low_groups_df <- low_groups %>%
+  dplyr::rename(sample_short = sample_short,
+                final_group = final_group)
+
+
+# Remove rows in dataframe_no_tumor that match these patient-tumor combinations
+
+metadata_onlynormalsparseanddense <- metadata_onlynormalsparseanddense %>%
+  anti_join(low_groups_df, by = c("sample_short", "final_group"))
+
+metadata_onlynormalsparseanddense_heterogenous <- metadata_onlynormalsparseanddense
+
+metadata_onlynormalsparseanddense_heterogenous <- metadata_onlynormalsparseanddense_heterogenous[!metadata_onlynormalsparseanddense_heterogenous$annot_harmonized %in% 
+                                                                                                   c("Plasma cells", "Plasma Cell"), ]
+
+metadata_onlynormalsparseanddense_heterogenous$sample_cond <- paste(metadata_onlynormalsparseanddense_heterogenous$sample_short, metadata_onlynormalsparseanddense_heterogenous$final_group, sep = "_")
+
+metadata_onlynormalsparseanddense_heterogenous$sample_cond <- as.character(metadata_onlynormalsparseanddense_heterogenous$sample_cond)
+
+
+
+
+# 3. Compute proportions per patient (normal+sparse combined)
+prop_df <- metadata_onlynormalsparseanddense_heterogenous %>%
+  group_by(sample_cond,
+           annot_harmonized) %>%
+  summarise(cell_count = n(), .groups = "drop") %>%
+  group_by(sample_cond) %>%
+  mutate(
+    Freq = cell_count / sum(cell_count) * 100
+  ) %>%
+  ungroup()
+
+
+
+# 4. create wide table like propeller output
+
+prop_trans_res_horizontal <- prop_df %>%
+  dplyr::rename(
+    sample = sample_cond,
+    clusters = annot_harmonized
+  ) %>%
+  dplyr::select(sample, clusters, Freq)
+
+
+# 5. join status
+
+metadata_unique <- metadata_onlynormalsparseanddense_heterogenous %>%
+  distinct(sample_cond, sample_group, final_group, sample_short )
+
+prop_trans_res_horizontal <- prop_trans_res_horizontal %>%
+  left_join(metadata_unique,
+            by = c("sample" = "sample_cond"))
+
+
+# 6. clean nonsense values
+
+prop_trans_res_horizontal <- prop_trans_res_horizontal %>%
+  filter(!is.na(Freq),
+         !is.nan(Freq))
+
+prop_trans_res_horizontal$clusters <- as.factor(prop_trans_res_horizontal$clusters)
+
+
+statuses <- unique(prop_trans_res_horizontal$final_group)
+combs_ordered <- expand.grid(group1 = statuses, group2 = statuses, stringsAsFactors = FALSE)
+combs_ordered <- combs_ordered[combs_ordered$group1 != combs_ordered$group2, ]
+
+# Order by group1, then group2 alphabetically
+combs_ordered <- combs_ordered[order(combs_ordered$group1, combs_ordered$group2), ]
+
+colnames(prop_trans_res_horizontal)[colnames(prop_trans_res_horizontal) == "final_group"] <- "tumor_percentage_grouped035ext_hex_average_method2"
+colnames(prop_trans_res_horizontal)[colnames(prop_trans_res_horizontal) == "sample_group"] <- "ObjectName_anonymous_grouped"
+
+pdf(file= file.path("Yip_et_all/ratio_boxplots_allArchiesCombined_adjusted_lmer_multisample_adjusted_yipetall_annotharmon.pdf"), width = 8, height = 6)
+
+for (i in seq_len(nrow(combs_ordered))) {
+  group1 <- combs_ordered$group1[i]
+  group2 <- combs_ordered$group2[i]
+  
+  p <- plot_patient_deltas_boxplot_with_stat_same_order_capped_test_archi_lmer(prop_trans_res_horizontal , group1 = group1, group2 = group2, method = "ratio", tumor = FALSE) + #cluster_order_defined = cluster_ordered_for_s_curves,
+    ggtitle(paste0("Ratio Proportions: ", group1, " vs ", group2))
+  
+  print(p)
+}
+
+dev.off()
+
+
+library(openxlsx)
+library(dplyr)
+library(purrr)
+
+# 1. Get all sheet names
+sheets <- getSheetNames("Yip_et_all/p_values_LMER_test2_annot_harmon.xlsx")
+
+# 2. Read all sheets + add sheet name column
+file <- "Yip_et_all/p_values_LMER_test2_annot_harmon.xlsx"
+
+dense_vs_normal_archiLMER <- map_dfr(sheets, function(sh) {
+  
+  tmp <- read.xlsx(file, sheet = sh)
+  
+  if (is.null(tmp) || nrow(tmp) == 0) {
+    message("Skipping empty sheet: ", sh)
+    return(NULL)
+  }
+  
+  tmp <- tmp %>%
+    mutate(
+      stars = as.character(stars),   # <-- force consistency
+      comparison = sh
+    )
+  
+  tmp
+})
+
+dense_vs_normal_archiLMER <- dense_vs_normal_archiLMER[dense_vs_normal_archiLMER$comparison =="normal_vs_dense", ]
+#dense_vs_normal_archiLMER <- dense_vs_normal_archiLMER[dense_vs_normal_archiLMER$tumor_percentage_grouped035ext_hex_average_method2  =="dense", ]
+
+significance_df_plot <- dense_vs_normal_archiLMER
+significance_df_plot$logp_value <- -log10(significance_df_plot$p_used)
+
+significance_df_plot <- significance_df_plot %>%
+  dplyr::group_by(clusters) %>%
+  dplyr::mutate(average_ratio = mean(ratio, na.rm = TRUE)) %>%
+  dplyr::ungroup()
+
+significance_df_plot2 <- significance_df_plot  %>% 
+  distinct(clusters, comparison, .keep_all = TRUE)       # keep first row per  
+
+# Arrange by sum_sigval (descending)
+# Reorder factor levels by logp_value
+significance_df_plot2 <- significance_df_plot2 %>%
+  arrange(logp_value) %>%
+  mutate(cluster_celltype = factor(clusters, levels = unique(clusters)))
+
+
+library(dplyr)
+library(ggplot2)
+
+# Prepare the data
+significance_df_plot2 <- significance_df_plot2 %>%
+  mutate(logp_value = -log10(p_used)) %>%
+  arrange(desc(ratio)) %>%  # order by log fold change ascending
+  mutate(cluster_celltype = factor(clusters, levels = rev(clusters)))  # largest on top
+
+# Plot logFC bars, colored by -log10(p-value)
+plot <- ggplot(significance_df_plot2, aes(x = cluster_celltype, y = ratio, fill = logp_value)) +
+  geom_col(width = 0.7) +
+  coord_flip() +
+  scale_fill_gradient2(
+    low = "#2166ac",    # dark blue
+    mid = "gray95",     # soft gray
+    high = "#b2182b",   # dark red
+    midpoint = median(significance_df_plot2$ratio),
+    name = "-log10(p-value)"
+  ) +
+  labs(
+    x = "Cell type",
+    y = "Log2 fold change (Dense / Normal PC)",
+    title = "Log fold change of cell types in Dense vs Normal PC regions"
+  ) +
+  theme_minimal(base_size = 16) +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text.y = element_text(size = 13, face = "bold"),
+    axis.text.x = element_text(size = 12),
+    axis.title = element_text(size = 15, face = "bold"),
+    plot.title = element_text(size = 17, face = "bold", hjust = 0.5),
+    legend.position = "right",
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)
+  )
+
+plot
+
+
+significance_df_plot2$average_ratio <- significance_df_plot2$average_ratio * -1
+
+significance_df_plot2 <- significance_df_plot2 %>%
+  mutate(
+    logp_value = -log10(p_val),
+    score = average_ratio * logp_value  # combined effect size and significance
+  )
+
+# Prepare the data
+significance_df_plot2 <- significance_df_plot2 %>%
+  arrange(desc(score)) %>%  # order by log fold change ascending
+  mutate(cluster_celltype = factor(clusters, levels = rev(clusters)))  # largest on top
+
+
+significance_df_plot2 <- significance_df_plot2 %>%
+  mutate(
+    sig_label = case_when(
+      p_val < 0.001 ~ "***",
+      p_val < 0.01  ~ "**",
+      p_val < 0.05  ~ "*",
+      TRUE          ~ ""
+    )
+  )
+
+plot <- ggplot(significance_df_plot2, aes(x = cluster_celltype, y = score, fill = score)) +
+  geom_col(width = 0.7) +
+  geom_text(aes(label = sig_label), hjust = ifelse(significance_df_plot2$score > 0, -0.1, 1.1), size = 5) +
+  coord_flip() +
+  scale_fill_gradient2(
+    low = "#2166ac",
+    mid = "gray95",
+    high = "#b2182b",
+    midpoint = 0,
+    name = "Combined score"
+  ) +
+  labs(
+    x = "Cell type",
+    y = "Combined score (logFC × -log10(p-value))",
+    title = "Cell type enrichment in Dense vs Normal PC regions"
+  ) +
+  theme_minimal(base_size = 16) +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text.y = element_text(size = 13, face = "bold"),
+    axis.text.x = element_text(size = 12),
+    axis.title = element_text(size = 15, face = "bold"),
+    plot.title = element_text(size = 17, face = "bold", hjust = 0.5),
+    legend.position = "right",
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)
+  )
+
+plot
+
+pdf(file= file.path(output_dir,"Sup_8/Yip_densevssparse_ranked.pdf"), 
+    width = 7, height = 10, useDingbats = FALSE, onefile = FALSE)
+print(plot)
+dev.off()
+
+
+
+
+# Sup Figure 9I YIP CN and dense vs sparse -----------------------
+
+
+#run ranked dense vs sparse and neighborhood part
+
+signed_competition_rank_with_zero <- function(x) {
+  out <- numeric(length(x))
+  
+  # Zeros stay zero
+  out[x == 0] <- 0
+  
+  # Positive values
+  pos <- x > 0
+  if (any(pos)) {
+    # rank positives ascending so largest positive = largest rank
+    out[pos] <- rank(x[pos], ties.method = "min")
+  }
+  
+  # Negative values
+  neg <- x < 0
+  if (any(neg)) {
+    # rank negatives descending so most negative = most negative rank
+    out[neg] <- -rank(-x[neg], ties.method = "min")
+  }
+  
+  return(out)
+}
+
+
+
+
+for_plot_df_neighborhood_ranked <- for_plot_df_neighborhood_PC2_filt_YIP[!(for_plot_df_neighborhood_PC2_filt_YIP$Celltype %in% c("Plasma Cell", "B or Plasma Cell", "Cycling B or Plasma Cell")), ]
+for_plot_df_neighborhood_ranked1 <- for_plot_df_neighborhood_ranked %>%
+  arrange(desc(Enrichment_Score)) %>%
+  mutate(order_rank = row_number())  # new column with ranking
+for_plot_df_neighborhood_ranked2 <- for_plot_df_neighborhood_ranked %>%
+  mutate(rank1 = signed_competition_rank_with_zero(Enrichment_Score))
+
+
+#### ranked dotplot
+
+library(dplyr)
+
+prep_rank_df <- function(
+    df,
+    cell_col,
+    score_col,
+    pval_col = NULL,
+    method_name,
+    rank_by = c("pval", "abs_score")
+) {
+  
+  rank_by <- match.arg(rank_by)
+  
+  out <- df %>%
+    dplyr::rename(
+      Celltype = {{ cell_col }},
+      score    = {{ score_col }}
+    ) %>%
+    mutate(
+      score = as.numeric(score),
+      Method = method_name
+    )
+  
+  if (!is.null(pval_col) && rank_by == "pval") {
+    out <- out %>%
+      dplyr::rename(pval = {{ pval_col }}) %>%
+      mutate(
+        pval = as.numeric(pval),
+        rank = rank(pval, ties.method = "average"),
+        rank_pct = 1 - (rank - 1) / (max(rank) - 1)
+      )
+  } else {
+    out <- out %>%
+      mutate(
+        pval = NA_real_,
+        rank = rank(-(score), ties.method = "average"),
+        rank_pct = 1 - (rank - 1) / (max(rank) - 1)
+      )
+  }
+  
+  out %>%
+    select(Celltype, Method, score, pval, rank, rank_pct)
+}
+
+
+significance_df_plot2_filt <- significance_df_plot2[!(significance_df_plot2$clusters %in% c("Plasma Cell", "B or Plasma Cell", "Cycling B or Plasma Cell")), ]
+
+
+df_dense_ranked <- prep_rank_df(
+  significance_df_plot2_filt,
+  cell_col  = clusters,
+  score_col = score ,
+  method_name = "Dense vs Sparse"
+)
+
+
+df_neigh_ranked <- prep_rank_df(
+  for_plot_df_neighborhood_ranked,
+  cell_col  = Celltype,
+  score_col = Enrichment_Score,
+  method_name = "PC Neighborhood"
+)
+
+
+plot_df_yip <- bind_rows(
+  df_dense_ranked,
+  df_neigh_ranked#,
+  #df_interact_ranked
+)
+
+#cell_order_tom <- plot_df %>%
+# filter(Method == "Dense vs Sparse")%>%
+#  group_by(Celltype) %>%
+# summarise(score) %>%
+#  arrange(desc(score)) %>%
+#  pull(Celltype)
+
+cell_order <- plot_df_yip %>%
+  group_by(Celltype) %>%
+  summarise(mean_rank = mean(rank_pct, na.rm = TRUE)) %>%
+  arrange(desc(mean_rank)) %>%
+  pull(Celltype)
+
+
+plot_df_yip$Celltype <- factor(plot_df_yip$Celltype, levels = rev(cell_order))
+
+plot_df_yip <- plot_df_yip %>%
+  group_by(Method) %>%
+  mutate(score_scaled = score / max(abs(score), na.rm = TRUE)) %>%
+  ungroup()
+
+plot_df_yip$Method  <- factor(plot_df_yip$Method, levels = c("Dense vs Sparse", "PC Neighborhood", "PC Interaction"))
+
+
+plot <- ggplot(
+  plot_df_yip,
+  aes(
+    x = Method,
+    y = Celltype,
+    size = rank_pct,
+    fill = score_scaled
+  )
+) +
+  geom_point(
+    shape = 21,
+    color = "black",
+    alpha = 0.9
+  ) +
+  scale_size_continuous(
+    range = c(1.5, 6),
+    name = "Rank percentile"
+  ) +
+  scale_fill_gradient2(
+    low = "#2166AC",
+    mid = "white",
+    high = "#B2182B",
+    midpoint = 0,
+    name = "Relative effect"
+  ) +
+  theme_minimal(base_size = 17) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+
+plot
+
+pdf(file= file.path(output_dir, "Revision_Figure/2_spatial_methods_ranked_dotplot_otherorder_yip_et_all.pdf"), 
+    width = 8, height = 10, useDingbats = FALSE, onefile = FALSE)
+print(plot)
+dev.off()
+
+
+
+
+
+
+# Sup Figure 10A CN SMM ---------------------------------------------------------------
 
 library(pheatmap)
 
@@ -7064,13 +8872,12 @@ plot <- pheatmap( for_plot,
 )
 plot
 
-pdf(file= file.path(output_dir,"Sup_Figure_3","CN_SMM.pdf"), width = 12, height = 6)
+pdf(file= file.path(output_dir,"Sup_Figure_6","CN_SMM.pdf"), width = 12, height = 6)
 print(plot)
 dev.off()
 
 
-
-# Sup Figure 6E Interactions all---------------------------------------------------------------
+# Sup Figure 10B Interactions all---------------------------------------------------------------
 
 ## interaction with new annot ifndiv:
 out_all <- readRDS("~/interactions_all_per_patient.rds")
@@ -7082,10 +8889,8 @@ library(scales)
 library(tibble)
 library(viridis)
 
-out_all_no_duplicates <- out_all[!(out_all$group_by %in% c( "02390_2_NDMM", "12928_2_PCL", "52998_2_NDMM","17034_2_NDMM","14719_3_CBM", "8667_3_CBM",  
-                                                            "9414_3_CBM", "17336_3_CBM")), ]
-
-#out_all_sparse_noCBM <- out_all_sparse[!(out_all_sparse$group_by %in% c( "14719_2_CBM",  "14719_3_CBM", "8667_2_CBM","8667_3_CBM","9141_2_CBM","9414_2_CBM", "9414_3_CBM" ,  "17336_3_CBM", "17336_2_CBM", "14719_2_CBM"  ,   "14719_3_CBM")), ]
+out_all_no_duplicates <- out_all[!(out_all$group_by %in% c( "NDMM_5B", "PCL_2B", "NDMM_4B","NDMM_3B","CBM_2", 
+                                                            "CBM_4", "CBM_1")), ]
 
 
 out_all_tib <- as_tibble(out_all_no_duplicates)
@@ -7156,7 +8961,7 @@ dev.off()
 
 
 
-# Sup Figure 6F interactions CBM---------------------------------------------------------------
+# Sup Figure 10C interactions CBM---------------------------------------------------------------
 
 ## interaction with new annot ifndiv:
 out_all <- readRDS("~/interactions_all_combined_per_patient.rds")
@@ -7168,11 +8973,23 @@ library(scales)
 library(tibble)
 library(viridis)
 
-out_all_no_duplicates <- out_all[!(out_all$group_by %in% c( "02390_2_NDMM", "12928_2_PCL", "52998_2_NDMM","17034_2_NDMM","14719_3_CBM", "8667_3_CBM",  
-                                                            "9414_3_CBM", "17336_3_CBM")), ]
+out_all_no_duplicates <- out_all[!(out_all$group_by %in% c( "NDMM_5B", "PCL_2B", "NDMM_4B","NDMM_3B","CBM_2", "CBM_2",  
+                                                                                                                      "CBM_4", "CBM_1")), ]
+                                   
 
-out_all_CBM <- out_all_no_duplicates[out_all_no_duplicates$group_by %in% c( "14719_2_CBM",  "14719_3_CBM", "8667_2_CBM","8667_3_CBM","9141_2_CBM","9414_2_CBM", "9414_3_CBM" ,  "17336_3_CBM", "17336_2_CBM", "14719_2_CBM"  ,   "14719_3_CBM"), ]
-
+out_all_CBM <- out_all_no_duplicates[
+  out_all_no_duplicates$group_by %in% c(
+    "CBM_1",
+    "CBM_1B",
+    "CBM_2",
+    "CBM_2B",
+    "CBM_3",
+    "CBM_3B",
+    "CBM_4",
+    "CBM_4B",
+    "CBM_5"
+  ),
+]
 
 out_all_tib <- as_tibble(out_all_CBM)
 # Step 2 — summarize interactions
@@ -7235,12 +9052,12 @@ plot <- ggplot(df, aes(from_label, to_label, fill = sum_sigval)) +
 plot
 
 
-pdf(file= file.path(output_dir,"Sup_Figure_4","Interactions_CBM.pdf"), 
+pdf(file= file.path(output_dir,"Sup_Figure_6","Interactions_CBM.pdf"), 
     width = 10, height = 10, useDingbats = FALSE, onefile = FALSE)
 print(plot)
 dev.off()
 
-# Sup Figure 6G  Interactions_normal_noCBM.pdf ---------------------------------------------------------------
+# Sup Figure 10D  Interactions_normal_noCBM ---------------------------------------------------------------
 
 ## interaction with new annot ifndiv:
 out_all <- readRDS("~/interactions_combined_wo_duplicated.rds")
@@ -7252,12 +9069,20 @@ library(scales)
 library(tibble)
 library(viridis)
 
-out_all_no_duplicates <- out_all[!(out_all$group_by %in% c( "02390_2_NDMM", "12928_2_PCL", "52998_2_NDMM","17034_2_NDMM","14719_3_CBM", "8667_3_CBM",  
-                                                            "9414_3_CBM", "17336_3_CBM")), ]
+out_all_no_duplicates <- out_all[!(out_all$group_by %in% c( "NDMM_5B", "PCL_2B", "NDMM_4B","NDMM_3B","CBM_2", "CBM_2",  
+                                                            "CBM_4", "CBM_1")), ]
 
 out_all_sparse <- out_all_no_duplicates[out_all_no_duplicates$architecture %in% c( "normal PC percentage"), ]
-out_all_sparse_noCBM <- out_all_sparse[!(out_all_sparse$group_by %in% c( "14719_2_CBM",  "14719_3_CBM", "8667_2_CBM","8667_3_CBM","9141_2_CBM","9414_2_CBM", "9414_3_CBM" ,  "17336_3_CBM", "17336_2_CBM", "14719_2_CBM"  ,   "14719_3_CBM")), ]
-
+out_all_sparse_noCBM <- out_all_sparse[!(out_all_sparse$group_by %in% c(
+  "CBM_1",
+  "CBM_1B",
+  "CBM_2",
+  "CBM_2B",
+  "CBM_3",
+  "CBM_3B",
+  "CBM_4",
+  "CBM_4B",
+  "CBM_5")),]
 
 out_all_tib <- as_tibble(out_all_sparse)
 # Step 2 — summarize interactions
@@ -7319,8 +9144,1083 @@ plot <- ggplot(df, aes(from_label, to_label, fill = sum_sigval)) +
   )
 plot
 
-pdf(file= file.path(output_dir,"Sup_Figure_4","Interactions_normal_noCBM.pdf"), 
+pdf(file= file.path(output_dir,"Sup_Figure_6","Interactions_normal_noCBM.pdf"), 
     width = 10, height = 10, useDingbats = FALSE, onefile = FALSE)
 print(plot)
 dev.off()
+
+
+
+
+
+
+# Sup Figure 11B-C nodule overview plots ----------------------------------
+
+
+
+
+HVN87_merged_combined_filt$architecture_group_3x <- ifelse(
+  HVN87_merged_combined_filt$Nodule_SIZE_FINAL_with_3x_scored %in% c(4, 5),
+  "Nodular / sheet-like",
+  "Diffuse / mini-nodular"
+)
+
+
+
+ggplot(HVN87_merged_combined_filt, aes(x = slides_groups)) +
+  geom_bar() +
+  geom_text(stat = "count", aes(label = after_stat(count)), vjust = -0.5) +
+  theme_bw()
+
+
+
+
+ggplot(HVN87_merged_combined_filt, aes(x = Nodule_SIZE_FINAL_with_3x_scored)) +
+  geom_bar() +
+  geom_text(stat = "count", aes(label = after_stat(count)), vjust = -0.5) +
+  theme_bw()
+
+
+HVN87_Biopt_nodule_info_filt <- HVN87_merged_combined_filt %>%
+  filter(
+    (!is.na(QC_score_LabMember2) | QC_score_LabMember2 != 0),
+    (!is.na(QC_score_LabMember1) | QC_score_LabMember1 != 0)
+  )
+
+
+
+library(ggplot2)
+library(dplyr)
+
+library(ggplot2)
+library(dplyr)
+
+# Rename categories + define colours
+score_labels <- c(
+  "1" = "Microclusters",
+  "2" = "Micronodules",
+  "3" = "Mininodules",
+  "4" = "Nodules",
+  "5" = "Sheets"
+)
+
+score_colors <- c(
+  "Microclusters" = "#D8EAF6",
+  "Micronodules"  = "#A9CCE3",
+  "Mininodules"   = "#5DADE2",
+  "Nodules"       = "#2874A6",
+  "Sheets"        = "#154360"
+)
+
+plot_df <- HVN87_Biopt_nodule_info_filt %>%
+  filter(!is.na(Nodule_SIZE_FINAL_with_3x_scored)) %>%
+  mutate(
+    score = ceiling(as.numeric(Nodule_SIZE_FINAL_with_3x_scored)),
+    score = recode(
+      as.character(score),
+      !!!score_labels
+    ),
+    score = factor(
+      score,
+      levels = c(
+        "Microclusters",
+        "Micronodules",
+        "Mininodules",
+        "Nodules",
+        "Sheets"
+      )
+    )
+  )
+# Create plot
+p <- ggplot(plot_df, aes(x = score, fill = score)) +
+  
+  geom_bar(
+    width = 0.75,
+    color = "black",
+    linewidth = 0.3
+  ) +
+  
+  geom_text(
+    stat = "count",
+    aes(label = after_stat(count)),
+    vjust = -0.4,
+    size = 5
+  ) +
+  
+  scale_fill_manual(values = score_colors) +
+  
+  labs(
+    x = NULL,
+    y = "Count"
+  ) +
+  
+  theme_bw(base_size = 14) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
+    axis.title.y = element_text(face = "bold"),
+    axis.text = element_text(color = "black"),
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      vjust = 1
+    ),
+    plot.margin = margin(10, 15, 10, 10)
+  ) +
+  
+  expand_limits(y = max(table(plot_df$score)) + 2)
+
+# Show plot
+p
+
+
+
+pdf(file= file.path("~/Nodule_scores_HVN87_3x.pdf"), 
+    width = 3, height = 6, useDingbats = FALSE, onefile = FALSE)
+print(p)
+dev.off()
+
+
+
+library(ggplot2)
+library(dplyr)
+
+# Group into broader architectural classes
+plot_df_architecture <- HVN87_Biopt_nodule_info_filt %>%
+  filter(!is.na(Nodule_SIZE_FINAL_with_3x_scored)) %>%
+  mutate(
+    architecture = case_when(
+      Nodule_SIZE_FINAL_with_3x_scored < 4 ~ "Diffuse / mini-nodular",
+      Nodule_SIZE_FINAL_with_3x_scored >= 4 ~ "Nodular / sheet-like"
+    ),
+    architecture = factor(
+      architecture,
+      levels = c(
+        "Diffuse / mini-nodular",
+        "Nodular / sheet-like"
+      )
+    )
+  )
+
+# Colours
+architecture_colors <- c(
+  "Diffuse / mini-nodular" = "#9ECAE1",
+  "Nodular / sheet-like" = "#08519C"
+)
+
+# Plot
+p_architecture <- ggplot(
+  plot_df_architecture,
+  aes(x = architecture, fill = architecture)
+) +
+  geom_bar(
+    width = 0.65,
+    color = "black",
+    linewidth = 0.3
+  ) +
+  geom_text(
+    stat = "count",
+    aes(label = after_stat(count)),
+    vjust = -0.4,
+    size = 5
+  ) +
+  scale_fill_manual(values = architecture_colors) +
+  labs(
+    x = NULL,
+    y = "Count"
+  ) +
+  theme_bw(base_size = 14) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
+    axis.title.y = element_text(face = "bold"),
+    axis.text = element_text(color = "black"),
+    axis.text.x = element_text(
+      angle = 15,
+      hjust = 1
+    )
+  ) +
+  expand_limits(
+    y = max(table(plot_df_architecture$architecture)) + 2
+  )
+
+# Show plot
+p_architecture
+
+pdf(file= file.path("~/Nodule_scores_HVN87_grouped_3x.pdf"), 
+    width = 3, height = 6, useDingbats = FALSE, onefile = FALSE)
+print(p_architecture)
+dev.off()
+
+
+
+
+# Sup Figure 11 D-E Correlation plots -------------------------------------
+
+
+
+
+# Prepare dataframe
+
+plot_df <- HVN87_Biopt_nodule_info_filt %>%
+  mutate(
+    nodule_score = Nodule_SIZE_FINAL_with_3x_scored,
+    nodule_groups = architecture_group_3x,
+    BMPC_estimate = as.numeric(Nodule_BMPC_average),
+    BMPC_path = as.numeric(bmpc_path)
+  )
+
+
+# Plot 1 — BMPC estimate
+
+p1 <- ggplot(
+  plot_df,
+  aes(x = nodule_score, y = BMPC_estimate)
+) +
+  
+  geom_jitter(
+    width = 0.15,
+    height = 0,
+    size = 2.8,
+    alpha = 0.65,
+    color = "#2C7FB8"
+  ) +
+  
+  geom_smooth(
+    method = "lm",
+    se = TRUE,
+    linewidth = 1,
+    color = "#D95F0E"
+  ) +
+  
+  stat_cor(
+    method = "spearman",
+    label.x.npc = "left",
+    label.y.npc = "top",
+    size = 5
+  ) +
+  
+  scale_x_continuous(
+    breaks = 1:5,
+    labels = c(
+      "Microclusters",
+      "Micronodules",
+      "Mininodules",
+      "Nodules",
+      "Sheets"
+    )
+  ) +
+  
+  labs(
+    x = "Nodule architecture score",
+    y = "BMPC estimate (%)"
+  ) +
+  
+  theme_bw(base_size = 14) +
+  theme(
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    ),
+    axis.text = element_text(color = "black"),
+    axis.title = element_text(face = "bold")
+  )
+
+
+# Plot 2 — Pathology BMPC
+
+p2 <- ggplot(
+  plot_df,
+  aes(x = nodule_score, y = BMPC_path)
+) +
+  
+  geom_jitter(
+    width = 0.15,
+    height = 0,
+    size = 2.8,
+    alpha = 0.65,
+    color = "#2C7FB8"
+  ) +
+  
+  geom_smooth(
+    method = "lm",
+    se = TRUE,
+    linewidth = 1,
+    color = "#D95F0E"
+  ) +
+  
+  stat_cor(
+    method = "spearman",
+    label.x.npc = "left",
+    label.y.npc = "top",
+    size = 5
+  ) +
+  
+  scale_x_continuous(
+    breaks = 1:5,
+    labels = c(
+      "Microclusters",
+      "Micronodules",
+      "Mininodules",
+      "Nodules",
+      "Sheets"
+    )
+  ) +
+  
+  labs(
+    x = "Nodule architecture score",
+    y = "Pathology BMPC (%)"
+  ) +
+  
+  theme_bw(base_size = 14) +
+  theme(
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    ),
+    axis.text = element_text(color = "black"),
+    axis.title = element_text(face = "bold")
+  )
+
+
+
+
+# Show plots
+
+p1
+p2
+
+
+# Save
+
+ggsave(
+  "~//Correlation_BMPCestimate_vs_nodule_score_final_3x.pdf",
+  p1,
+  width = 6,
+  height = 5
+)
+
+
+ggsave(
+  "~//Correlation_BMPCestimatePATH_vs_nodule_score_final_3x.pdf",
+  p2,
+  width = 6,
+  height = 5
+)
+
+
+
+
+# Prepare dataframe
+
+plot_df <- HVN87_Biopt_nodule_info_filt %>%
+  mutate(
+    nodule_score_lab_member2 = Nodule_SIZE_FINAL_LabMember2,
+    nodule_score_lab_member1 = Nodule_SIZE_FINAL_LabMember1
+  )
+
+
+# Plot 1 — BMPC estimate
+
+p1 <- ggplot(
+  plot_df,
+  aes(x = nodule_score_lab_member1, y = nodule_score_lab_member2)
+) +
+  
+  geom_jitter(
+    width = 0.15,
+    height = 0,
+    size = 2.8,
+    alpha = 0.65,
+    color = "#2C7FB8"
+  ) +
+  
+  geom_smooth(
+    method = "lm",
+    se = TRUE,
+    linewidth = 1,
+    color = "#D95F0E"
+  ) +
+  
+  stat_cor(
+    method = "spearman",
+    label.x.npc = "left",
+    label.y.npc = "top",
+    size = 5
+  ) +
+  
+  scale_x_continuous(
+    breaks = 1:5,
+    labels = c(
+      "Microclusters",
+      "Micronodules",
+      "Mininodules",
+      "Nodules",
+      "Sheets"
+    )
+  ) +
+  
+  labs(
+    x = "nodule_score_lab_member1",
+    y = "nodule_score_lab_member2"
+  ) +
+  
+  theme_bw(base_size = 14) +
+  theme(
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    ),
+    axis.text = element_text(color = "black"),
+    axis.title = element_text(face = "bold")
+  )
+
+p1
+
+ggsave(
+  "~/Correlation_vs_nodule_score_LabMember1_LabMember2.pdf",
+  p1,
+  width = 6,
+  height = 5
+)
+
+
+# Sup Figure 11F ISS Cyto overview ----------------------------------------
+
+
+
+
+# Assuming your dataframe is: HVN87_merged_no_METADATA_no_lowquality
+df <- HVN87_Biopt_nodule_info_filt
+
+
+plot_df <- HVN87_Biopt_nodule_info_filt %>%
+  mutate(
+    cyto_group = case_when(
+      d17 == "1" ~ "del17p",
+      t414 == "1" ~ "t(4;14)",
+      t1416 == "1" ~ "t(14;16)",
+      d17 == "0" & t414 == "0" & t1416 == "0" ~ "Standard risk",
+      TRUE ~ NA_character_
+    ),
+    
+    reviss = case_when(
+      reviss == 9 ~ "ISS Unknown",
+      is.na(reviss) ~ "ISS Unknown",
+      TRUE ~ paste0("ISS ", reviss)
+    )
+  )
+
+plot_df_long <- bind_rows(
+  plot_df %>% mutate(group = cyto_group),
+  plot_df %>% mutate(group = reviss),
+  plot_df %>% mutate(group = "Total")
+) %>%
+  filter(!is.na(group)) %>%
+  group_by(group, architecture_group_3x) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  group_by(group) %>%
+  mutate(prop = n / sum(n)) %>%
+  ungroup() %>%
+  mutate(
+    group = factor(
+      group,
+      levels = c(
+        "Total",
+        "ISS 1", "ISS 2", "ISS 3", "ISS Unknown",
+        "Standard risk",
+        "del17p",
+        "t(4;14)",
+        "t(14;16)"
+      )
+    )
+  )
+
+p <- ggplot(plot_df_long, aes(x = group, y = prop, fill = architecture_group_3x)) +
+  geom_bar(stat = "identity", color = "black", linewidth = 0.25) +
+  
+  geom_text(
+    aes(label = n),
+    position = position_stack(vjust = 0.5),
+    size = 3
+  ) +
+  
+  scale_y_continuous(labels = percent_format()) +
+  
+  scale_fill_manual(values = c(
+    "Diffuse / mini-nodular" = "#9ECAE1",
+    "Nodular / sheet-like" = "#08519C"
+  )) +
+  
+  labs(
+    x = NULL,
+    y = "Proportion of patients",
+    fill = "Architecture"
+  ) +
+  
+  theme_bw(base_size = 14) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(angle = 35, hjust = 1)
+  )
+
+p
+
+
+ggsave(
+  "~/cytogenetic_overview_revISS_3x.pdf",
+  p,
+  width = 6,
+  height = 5
+)
+
+
+
+
+# Sup Figure 11F-G KM curves  --------------------------------------------
+
+library(survival)
+library(survminer)
+library(dplyr)
+
+
+
+HVN87_merged_combined <- 
+  HVN87_merged_combined %>%
+  dplyr::rename(
+    ISS   = iss,
+    pfsi_1 = pfsi
+  )
+
+
+
+HVN87_merged_combined$architecture_group_3x <- ifelse(
+  HVN87_merged_combined$Nodule_SIZE_FINAL_with_3x_scored %in% c(4, 5),
+  "Nodular / sheet-like",
+  "Diffuse / mini-nodular"
+)
+
+
+
+# Prepare metadata
+
+HVN87_merged_no_METADATA <- HVN87_merged_combined[!is.na(HVN87_merged_combined$pfs),]
+
+
+HVN87_merged_no_METADATA_no_lowquality <- HVN87_merged_no_METADATA[!is.na(HVN87_merged_no_METADATA$Nodule_SIZE_FINAL_average),]
+
+
+library(dplyr)
+
+meta <- HVN87_merged_no_METADATA_no_lowquality
+
+
+meta$BMPC_10 <- meta$bmpc_path / 10
+
+
+meta$reviss <- factor(meta$reviss)
+
+
+meta$architecture_group_average <- factor(meta$architecture_group_3x)
+
+
+
+# Cox model — PFS
+
+cox_pfs <- coxph(
+  Surv(pfs, pfsi_1) ~
+    architecture_group_average +
+    #BMPC_10 +
+    reviss, # +
+  #d17 +
+  #t414 +
+  #t1416,
+  
+  data = meta
+)
+
+summary(cox_pfs)
+
+# Forest plot
+p <- ggforest(
+  cox_pfs,
+  data = meta,
+  main = "Multivariate Cox Regression PFS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+pdf(file= file.path("~/Sup_Fig10/COX_all_variables_excl_treatment_final_PFS_REViss_3x.pdf"), 
+    width = 10, height = 6, useDingbats = FALSE, onefile = FALSE)
+print(p)
+dev.off()
+
+
+# Cox model — OS
+
+cox_os <- coxph(
+  Surv(os, osi) ~
+    architecture_group_average +
+    #BMPC_10 +
+    reviss, #+
+  #d17 +
+  #t414 +
+  #t1416,
+  
+  data = meta
+)
+
+summary(cox_os)
+
+
+# Forest plot
+p <- ggforest(
+  cox_os,
+  data = meta,
+  main = "Multivariate Cox Regression OS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+pdf(file= file.path("~/Sup_Fig10/OX_all_variables_excl_treatment_final_OS_REViss_3x.pdf"), 
+    width = 10, height = 6, useDingbats = FALSE, onefile = FALSE)
+print(p)
+dev.off()
+
+
+
+# Cox model — PFS
+
+cox_pfs <- coxph(
+  Surv(pfs, pfsi_1) ~
+    architecture_group,
+  
+  data = meta
+)
+
+summary(cox_pfs)
+
+# Forest plot
+p <- ggforest(
+  cox_pfs,
+  data = meta,
+  main = "Multivariate Cox Regression PFS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+pdf(file= file.path("~/Sup_Fig10/COX_archi_variables_excl_treatment_final_PFS_3x.pdf"), 
+    width = 10, height = 6, useDingbats = FALSE, onefile = FALSE)
+print(p)
+dev.off()
+
+
+# Cox model — OS
+
+cox_os <- coxph(
+  Surv(os, osi) ~
+    architecture_group ,
+  
+  data = meta
+)
+
+summary(cox_os)
+
+
+# Forest plot
+p <- ggforest(
+  cox_os,
+  data = meta,
+  main = "Multivariate Cox Regression OS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+pdf(file= file.path("~/Sup_Fig10/COX_archi_variables_excl_treatment_final_OS_3x.pdf"), 
+    width = 10, height = 6, useDingbats = FALSE, onefile = FALSE)
+print(p)
+dev.off()
+
+
+
+
+# Cox model — PFS
+
+cox_pfs <- coxph(
+  Surv(pfs, pfsi_1) ~
+    BMPC_10,
+  
+  data = meta
+)
+
+summary(cox_pfs)
+
+# Forest plot
+p <- ggforest(
+  cox_pfs,
+  data = meta,
+  main = "Multivariate Cox Regression PFS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+pdf(file= file.path("~/Sup_Fig10/COX_BMPC_10_path_variables_excl_treatment_final_PFS_3x.pdf"), 
+    width = 10, height = 6, useDingbats = FALSE, onefile = FALSE)
+print(p)
+dev.off()
+
+
+# Cox model — OS
+
+cox_os <- coxph(
+  Surv(os, osi) ~
+    BMPC_10 ,
+  
+  data = meta
+)
+
+summary(cox_os)
+
+
+# Forest plot
+p <- ggforest(
+  cox_os,
+  data = meta,
+  main = "Multivariate Cox Regression OS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+pdf(file= file.path("~/Sup_Fig10/COX_BMPC_10_path_variables_excl_treatment_final_OS_3x.pdf"), 
+    width = 10, height = 6, useDingbats = FALSE, onefile = FALSE)
+print(p)
+dev.off()
+
+
+# Cox model — PFS
+
+cox_pfs <- coxph(
+  Surv(pfs, pfsi_1) ~
+    #architecture_group_average +
+    BMPC_10 +
+    reviss, # +
+  #d17 +
+  #t414 +
+  #t1416,
+  
+  data = meta
+)
+
+summary(cox_pfs)
+
+# Forest plot
+p <- ggforest(
+  cox_pfs,
+  data = meta,
+  main = "Multivariate Cox Regression PFS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+pdf(file= file.path("~/Sup_Fig10/COX_bmpc_path_reviss_excl_treatment_final_PFS_REViss_3x.pdf"), 
+    width = 10, height = 6, useDingbats = FALSE, onefile = FALSE)
+print(p)
+dev.off()
+
+
+# Cox model — OS
+
+cox_os <- coxph(
+  Surv(os, osi) ~
+    #architecture_group_average +
+    BMPC_10 +
+    reviss, #+
+  #d17 +
+  #t414 +
+  #t1416,
+  
+  data = meta
+)
+
+summary(cox_os)
+
+
+# Forest plot
+p <- ggforest(
+  cox_os,
+  data = meta,
+  main = "Multivariate Cox Regression OS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+pdf(file= file.path("~/Sup_Fig10/OX_BMPC_path_and_REVISS_excl_treatment_final_OS_REViss_3x.pdf"), 
+    width = 10, height = 6, useDingbats = FALSE, onefile = FALSE)
+print(p)
+dev.off()
+
+
+
+
+# Cox model — PFS
+
+cox_pfs <- coxph(
+  Surv(pfs, pfsi_1) ~
+    architecture_group_average +
+    BMPC_10 +
+    reviss, # +
+  #d17 +
+  #t414 +
+  #t1416,
+  
+  data = meta
+)
+
+summary(cox_pfs)
+
+# Forest plot
+p <- ggforest(
+  cox_pfs,
+  data = meta,
+  main = "Multivariate Cox Regression PFS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+pdf(file= file.path("~/Sup_Fig10/COX_all_variables_excl_treatment_final_PFS_REViss_3x.pdf"), 
+    width = 10, height = 6, useDingbats = FALSE, onefile = FALSE)
+print(p)
+dev.off()
+
+
+# Cox model — OS
+
+cox_os <- coxph(
+  Surv(os, osi) ~
+    architecture_group_average +
+    BMPC_10 +
+    reviss, #+
+  #d17 +
+  #t414 +
+  #t1416,
+  
+  data = meta
+)
+
+summary(cox_os)
+
+
+# Forest plot
+p <- ggforest(
+  cox_os,
+  data = meta,
+  main = "Multivariate Cox Regression OS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+pdf(file= file.path("~/Sup_Fig10/OX_all_variables_excl_treatment_final_OS_REViss_3x.pdf"), 
+    width = 10, height = 6, useDingbats = FALSE, onefile = FALSE)
+print(p)
+dev.off()
+
+
+
+
+library(survival)
+library(survminer)
+
+# KM model
+km_os_arch <- survfit(
+  Surv(os, osi) ~ architecture_group,
+  data = meta
+)
+
+# Plot
+p_km_os_arch <- ggsurvplot(
+  km_os_arch,
+  data = meta,
+  risk.table = TRUE,
+  pval = TRUE,
+  conf.int = FALSE,
+  xlab = "Time",
+  ylab = "Overall survival probability",
+  legend.title = "Architecture group",
+  palette = c("#9ECAE1", "#08519C"),
+  ggtheme = theme_bw(base_size = 14),
+  risk.table.height = 0.25
+)
+
+# Show
+p_km_os_arch
+
+# Save
+pdf("~/Sup_Fig10/KM_OS_architecture_group.pdf_3x", width = 8, height = 6)
+print(p_km_os_arch)
+dev.off()
+
+
+library(survival)
+library(survminer)
+
+# KM model — PFS
+km_pfs_arch <- survfit(
+  Surv(pfs, pfsi_1) ~ architecture_group,
+  data = meta
+)
+
+# Plot with at-risk table
+p_km_pfs_arch <- ggsurvplot(
+  km_pfs_arch,
+  data = meta,
+  risk.table = TRUE,
+  risk.table.y.text = TRUE,
+  risk.table.y.text.col = TRUE,
+  pval = TRUE,
+  conf.int = FALSE,
+  xlab = "Time",
+  ylab = "Progression-free survival probability",
+  legend.title = "Architecture group",
+  palette = c("#9ECAE1", "#08519C"),
+  ggtheme = theme_bw(base_size = 14),
+  risk.table.height = 0.30
+)
+
+# Show plot + risk table
+p_km_pfs_arch
+
+
+# Save
+pdf("~/Sup_Fig10KM_pfs_architecture_group.pdf_3x", width = 8, height = 6)
+print(p_km_pfs_arch)
+dev.off()
+
+library(survival)
+library(survminer)
+library(ggpubr)
+library(gridExtra)
+
+
+# KM models
+
+km_os_arch <- survfit(
+  Surv(os, osi) ~ architecture_group,
+  data = meta
+)
+
+km_pfs_arch <- survfit(
+  Surv(pfs, pfsi_1) ~ architecture_group,
+  data = meta
+)
+
+
+# Common plotting options
+
+common_theme <- theme_bw(base_size = 14)
+
+common_args <- list(
+  risk.table = TRUE,
+  risk.table.height = 0.25,
+  risk.table.y.text = F,
+  risk.table.y.text.col = TRUE,
+  pval = TRUE,
+  conf.int = FALSE,
+  legend.title = "Architecture group",
+  palette = c("#9ECAE1", "#08519C"),
+  ggtheme = common_theme,
+  
+  # X-axis
+  xscale = 4.34524,          # weeks -> months
+  break.time.by = 26.07, #52.1429
+  xlab = "Time (months)"
+)
+
+
+# OS
+
+p_os <- do.call(
+  ggsurvplot,
+  c(
+    list(
+      fit = km_os_arch,
+      data = meta,
+      ylab = "Overall survival probability"
+    ),
+    common_args
+  )
+)
+
+
+# PFS
+
+p_pfs <- do.call(
+  ggsurvplot,
+  c(
+    list(
+      fit = km_pfs_arch,
+      data = meta,
+      ylab = "Progression-free survival probability"
+    ),
+    common_args
+  )
+)
+
+# Remove duplicate legends
+p_os$plot  <- p_os$plot  + theme(legend.position = "none")
+p_pfs$plot <- p_pfs$plot + theme(legend.position = "none")
+
+# Make sure plots and tables have identical widths
+p_os$table$widths  <- p_os$plot$widths
+p_pfs$table$widths <- p_pfs$plot$widths
+
+
+# Arrange
+
+top <- ggarrange(
+  p_pfs$plot,
+  p_os$plot,
+  ncol = 2,
+  align = "hv"
+)
+
+bottom <- ggarrange(
+  p_pfs$table,
+  p_os$table,
+  ncol = 2,
+  align = "hv"
+)
+
+combined <- ggarrange(
+  top,
+  bottom,
+  nrow = 2,
+  heights = c(3, 1)
+)
+
+combined
+
+# Save
+
+ggsave(
+  "~/Sup_Fig10KM_OS_PFS_architecture_group_3x_revised.pdf",
+  combined,
+  width = 12,
+  height = 6
+)
+
 
