@@ -1,5 +1,6 @@
 
-##### Script Analysis 2026-01-2026
+##### ANALYSIS PIPELINE # [ Spatial profiling identifies a distinct and topographically-defined tumor microenvironment that emerges during multiple myeloma evolution ] 
+
 
 
 # Read in packages --------------------------------------------------------
@@ -21,10 +22,10 @@ invisible(lapply(pkgs, library, character.only = TRUE))
 
 
 # ---- read in xenium object from scratch ---- 
-data.dir <- "~/output-XETG00101__0058360__Region_1__20250612__090107_SMM_MM//"
-data.dir <- "~/output-XETG00101__0058363__Region_1__20250612__090106_relapse_MM/"
-data.dir <- "~/output-XETG00101__0058963__Region_1__20250605__132454_HBM/"
-data.dir <- "~/output-XETG00101__0058965__Region_1__20250605__132455_MM/"
+data.dir <- "~/output-_SMM_MM//"
+data.dir <- "~/output-_relapse_MM/"
+data.dir <- "~/output-_HBM/"
+data.dir <- "~/output-_MM/"
 
 # create CSV file with transcripts
 
@@ -46,10 +47,10 @@ for(file in list.files){
 # Load the matrix files manually
 
 # Load transcript data
-transcript_data <- fread( "~/20250612__085636__202501628B-Hema-12062025/output-XETG00101__0058360__Region_1__20250612__090107_SMM_MM//transcripts.csv.gz")
-transcript_data_raw <- read_parquet("~/output-XETG00101__0058363__Region_1__20250612__090106_relapse_MM/transcripts.parquet")
+transcript_data <- fread( "~/_SMM_MM//transcripts.csv.gz")
+transcript_data_raw <- read_parquet("~/_relapse_MM/transcripts.parquet")
 
-cell_feature_data <- Read10X_h5("~/output-XETG00101__0058360__Region_1__20250612__090107_SMM_MM/cell_feature_matrix.h5")
+cell_feature_data <- Read10X_h5("~/_SMM_MM/cell_feature_matrix.h5")
 
 total_transcripts <- nrow(transcript_data_raw)
 high_quality_transcripts <- sum(transcript_data_raw$qv >= 20)
@@ -164,7 +165,6 @@ for (sample_name in names(xenium.list)) {
 }
 
 
-#merged_seurat$Tissue[merged_seurat$Tissue == "12929"] <- "12928"
 # 4. Function to assign tissue info to a Seurat object, given the cell lists and tissue IDs to assign
 assign_tissue <- function(seurat_obj, cell_lists, tissue_ids) {
   #seurat_obj$CellNames <- colnames(seurat_obj)  # ensure CellNames column exists
@@ -264,7 +264,6 @@ for (sample_name in names(xenium.list)) {
     seurat_list_split[[new_name]] <- new_seurat
   }
 }
-saveRDS(merged_seurat_all , "~/seurat_merge_after_sct.rds" )
 
 
 # Merge -------------------------------------------------------------------
@@ -292,6 +291,7 @@ merged_last7 <- Reduce(function(x, y) merge(x, y), last7_list)
 # Now merge the result with the already merged first 10
 merged_seurat_all <- merge(merged_seurat, merged_last7)
 
+saveRDS(merged_seurat_all , "~/seurat_merge_after_sct.rds" )
 
 
 # Integration -------------------------------------------------------------
@@ -425,9 +425,7 @@ integrated_seurat_all <- transfer_metadata_columns_flex(
 )
 
 
-# Define offsets for slides (assuming names of xenium.list match these keys)
-#slide_offsets <- c("HBM" = 0, "MM" = 23000, "SMM_MM" = 46000, "Relapse_MM" = 69000, "MM" = 92000, "HBM" = 115000, "MDS_43196_MM_09610" = 138000, "HBM_14719" = 161000)
-slide_offsets <- c("MM" = 92000, "HBM" = 115000, "MDS_43196_MM_09610" = 138000, "HBM_14719" = 161000)
+slide_offsets <- c("MM" = 92000, "HBM" = 115000, "MM_02" = 138000, "HBM_03" = 161000)
 
 coords_list <- list()
 
@@ -1154,7 +1152,7 @@ for (stage in unique(plot_data2$DiseaseStage)) {
 
 dev.off()
 
-)
+
 
 # 1️⃣ Add DiseaseStage column if not already done
 plot_data <- results_df_annot_broad %>%
@@ -1680,6 +1678,7 @@ ggplot(all_summary_patient_NDMM_filtered, aes(x = pc_cluster, y = mean_neighbors
 
 # Cellular neighborhood analysis -----------------------------------------------------------------
 
+spe_Xenium <- buildSpatialGraph(spe_Xenium, img_id = "ObjectName_anonymous_grouped", type = "delaunay", max_dist = 20)
 
 
 spe_Xenium <- aggregateNeighbors(spe_Xenium , colPairName = "delaunay_interaction_graph", 
@@ -2888,7 +2887,7 @@ saveRDS(results_all_genes, paste0("results_all_genes_specific_wo_dispersed", met
 
 
 
-results_DEG_pseudo_hetero_K4_wo_dispersed <- readRDS("~/R_analyses/scRNAseq/Xenium_run3/RDS_files/Objects/results_all_genes_broad_wo_dispersedpseudo_regions_K4_seed111_wo_dispersed.rds")
+results_DEG_pseudo_hetero_K4_wo_dispersed <- readRDS("~//results_all_genes_broad_wo_dispersedpseudo_regions_K4_seed111.rds")
 
 markers_df_pseudo <- map_df(
   names(results_DEG_pseudo_hetero_K4_wo_dispersed), 
@@ -3155,3 +3154,734 @@ spe$clusters <- clusters
 
 set.seed(220228)
 spe <- runUMAP(spe, dimred = "harmony", name = "UMAP_harmony") 
+
+
+
+# IMC image visualization -------------------------------------------------
+
+masks <- readRDS('/masks.rds')
+
+# Sample images
+set.seed(220517)
+cur_id <- c("NDMM_4_6") 
+cur_masks <- masks[names(masks) %in% cur_id]
+
+
+#without segmentation
+plotCells(cur_masks,
+          object = spe  ,  
+          cell_id = "Cell_number", img_id = "Patient_ImageNumber_correct", 
+          colour_by = "annotation_IMC") 
+
+## with visible segmentation
+plotCells(cur_masks, image_title=NULL, scale_bar = NULL, #legend = NULL,
+          object = spe, 
+          cell_id = "ObjectNumber", img_id = "Patient_ImageNumber_correct", thick = F, outline_by = "Patient_name", 
+          colour_by = "annotation_IMC", 
+          colour = list(annotation_IMC = metadata(annotation_IMC)$color_vectors$celltype, 
+                        Patient_name = metadata(spe)$color_vectors$Patient_name ))
+
+# Patch detection and T cell infiltration ---------------------------------
+
+
+spe_IMC_combined_with202606 <- buildSpatialGraph(spe_IMC_combined_with202606, img_id = "ROI_or_Image", type = "expansion", threshold = 20)
+
+
+spe_IMC_combined_with202606  <- patchDetection(spe_IMC_combined_with202606 , 
+                                               patch_cells = spe_IMC_combined_with202606$celltype_annotation_transfer_with202606_nounderscore == "Plasma Cell",
+                                               img_id = "ROI_or_Image",
+                                               expand_by = 1,
+                                               min_patch_size = 40,
+                                               colPairName = "expansion_interaction_graph",
+                                               BPPARAM = MulticoreParam())
+
+
+patch_df <- colData(spe_IMC_combined_with202606) %>%
+  as_tibble() %>%
+  filter(!is.na(patch_id)) %>%
+  group_by(ObjectName_anonymous_grouped, patch_id) %>%
+  summarise(
+    patch_size = n(),
+    Tcell_count = sum(celltype_annotation_transfer_with202606_nounderscore %in%
+                        c("CD4 T Cell", "CD8 T Cell")),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Tcell_present = Tcell_count > 0,
+    log_Tcells = log1p(Tcell_count)  # avoids log(0) issue
+  )
+
+
+plot_df <- patch_df %>%
+  filter(patch_size >= 50) %>%
+  mutate(size_bin = cut(
+    patch_size,
+    breaks = c(25, 50, 100, 250, Inf),
+    include.lowest = TRUE
+  )) %>%
+  group_by(size_bin, Tcell_present) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  group_by(size_bin) %>%
+  mutate(frac = n / sum(n)) %>%
+  ungroup()
+
+p1 <- ggplot(plot_df, aes(x = size_bin, y = frac, fill = Tcell_present)) +
+  geom_col() +
+  geom_text(
+    aes(label = n),
+    position = position_stack(vjust = 0.5),
+    size = 3
+  ) +
+  theme_classic() +
+  labs(
+    x = "Patch size bin",
+    y = "Fraction of patches"
+  )
+p1
+
+status_colors <- c(  #fir annot even less broad
+  
+  "CBM" = "#46F0F0",
+  "IMC_CBM" = "#46F0F0",
+  "MGUS" = "#984EA3" ,
+  "SMM" = "#4575B4",              # Macrophages
+  "NDMM" = "#FF7F00", 
+  "MM" = "#FF7F00", 
+  "IMC_NDMM" = "#46F0F0",
+  "PCL" = "#D73027",
+  "pPCL" = "#D73027",
+  "Relapse" = "#984EA3" #New: yellow
+)
+
+patch_df <- colData(spe_IMC_combined_with202606) %>%
+  as_tibble() %>%
+  filter(!is.na(patch_id)) %>%
+  group_by(ObjectName_anonymous_grouped, patch_id, status) %>%
+  summarise(
+    patch_size = n(),
+    .groups = "drop"
+  ) %>%
+  filter(patch_size >= 45)
+
+order_vec <- c(
+  "SMM_1",
+  "SMM_2","SMM_3",
+  "SMM_4",
+  "NDMM_1","NDMM_2",
+  "NDMM_3","NDMM_4",
+  "NDMM_5","NDMM_6",
+  "NDMM_7","NDMM_8",
+  "NDMM_9",
+  "NDMM_10","NDMM_11",
+  "NDMM_12",
+  "NDMM_13","NDMM_14",
+  "PCL_1",
+  "PCL_2","PCL_3",
+  "PCL_4",
+  "Relapse_1",
+  "Relapse_2", "Relapse_3",
+  "Relapse_4"
+)
+
+patch_df <- patch_df %>%
+  mutate(
+    ObjectName_anonymous_grouped = factor(ObjectName_anonymous_grouped, levels = order_vec)
+  )
+
+ggplot(patch_df, aes(
+  x = ObjectName_anonymous_grouped,
+  y = patch_size,
+  color = status
+)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, alpha = 0.4, size = 1) +
+  scale_y_log10() +
+  scale_color_manual(values = status_colors) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(
+    x = NULL,
+    y = "Patch size (# cells, log10 scale)",
+    color = "Status"
+  )
+
+
+p1_b <- ggplot(patch_df, aes(
+  x = ObjectName_anonymous_grouped,
+  y = patch_size,
+  fill = status
+)) +
+  geom_boxplot(
+    outlier.shape = 16,
+    outlier.colour = "black",
+    alpha = 0.8
+  ) +
+  scale_y_log10() +
+  scale_fill_manual(values = status_colors) +
+  scale_color_manual(values = status_colors) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  labs(
+    x = NULL,
+    y = "Patch size (# cells, log10 scale)",
+    fill = "Status",
+    color = "Status"
+  )
+
+
+p1_b
+
+library(colorspace)
+
+dot_colors <- darken(status_colors, amount = 0.35)
+
+p1_b <- ggplot(patch_df, aes(
+  x = ObjectName_anonymous_grouped,
+  y = patch_size
+)) +
+  geom_boxplot(
+    aes(fill = status),
+    outlier.shape = NA,
+    alpha = 0.8
+  ) +
+  geom_jitter(
+    aes(color = status),
+    width = 0.15,
+    alpha = 0.6,
+    size = 1.5
+  ) +
+  scale_y_log10() +
+  scale_fill_manual(values = status_colors) +
+  scale_color_manual(values = dot_colors) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  labs(
+    x = NULL,
+    y = "Patch size (# cells, log10 scale)",
+    fill = "status",
+    color = "status"
+  )
+
+
+library(dplyr)
+library(ggplot2)
+
+## Plot 1
+df <- colData(spe_IMC_combined) %>% 
+  as_tibble() %>%
+  filter(!is.na(patch_id)) %>%
+  group_by(patch_id, ROI_or_Image) %>%
+  summarise(
+    Tcell_count = sum(celltype_annotation_transfer_with202606_nounderscore %in%
+                        c("CD8 T Cell", "CD4 T Cell")),
+    patch_size = n(),
+    .groups = "drop"
+  ) %>%
+  filter(patch_size >= 25)
+
+fit <- lm(log10(Tcell_count + 1) ~ log10(patch_size), data = df)
+slope <- coef(fit)[2]
+label_text <- paste0("Slope = ", round(slope, 3))
+
+p2 <- ggplot(df, aes(x = patch_size, y = Tcell_count + 1)) +
+  geom_point(alpha = 0.6, size = 3.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "black", linewidth = 1.4) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(
+    x = "Patch size",
+    y = "T cell count (+1)"
+  ) +
+  annotate(
+    "text",
+    x = Inf,
+    y = Inf,
+    label = label_text,
+    hjust = 1.05,
+    vjust = 1.4,
+    size = 7
+  ) +
+  theme_classic(base_size = 22) +
+  theme(
+    axis.title = element_text(size = 24, face = "bold"),
+    axis.text = element_text(size = 20),
+    axis.line = element_line(linewidth = 1.2),
+    axis.ticks = element_line(linewidth = 1.2),
+    axis.ticks.length = unit(0.3, "cm")
+  )
+
+p2
+
+
+
+## Plot 2
+df <- colData(spe_IMC_combined) %>% 
+  as_tibble() %>%
+  filter(!is.na(patch_id)) %>%
+  group_by(patch_id, ROI_or_Image, patient_id) %>%
+  summarise(
+    Tcell_count = sum(celltype_annotation_transfer_with202606_nounderscore %in%
+                        c("CD8 T Cell", "CD4 T Cell")),
+    patch_size = n(),
+    .groups = "drop"
+  ) %>%
+  filter(patch_size >= 25) %>%
+  mutate(
+    Tcell_present = Tcell_count > 0,
+    Tcell_ratio = Tcell_count / patch_size
+  )
+
+p3 <- ggplot(df, aes(x = patch_size, y = Tcell_ratio)) +
+  geom_point(
+    alpha = 0.5,
+    size = 3.5,
+    position = position_jitter(width = 0.1, height = 0)
+  ) +
+  scale_x_log10() +
+  scale_y_continuous(limits = c(0, 0.15)) +
+  labs(
+    x = "Patch size",
+    y = "T cell ratio"
+  ) +
+  theme_classic(base_size = 22) +
+  theme(
+    axis.title = element_text(size = 24, face = "bold"),
+    axis.text = element_text(size = 20),
+    axis.line = element_line(linewidth = 1.2),
+    axis.ticks = element_line(linewidth = 1.2),
+    axis.ticks.length = unit(0.3, "cm")
+  )
+
+
+
+# SEC vs AEC volcanoplot --------------------------------------------------
+
+
+
+Idents(integrated_seurat_all      ) <- integrated_seurat_all    @meta.data$annot_merged_final_with_macro_noslash_dis_lowquali_correct_correct_IFNsubdiv_for_s_curves
+markers <- FindMarkers(integrated_seurat_all  , assay = "SCT", ident.1 = "SEC", ident.2 = "AEC" )
+#markers_umap_clustered_filt <- markers_umap_clustered[!markers_umap_clustered$gene %in% tumor_genes,]
+write.csv(markers , "markers_and_otherCSVfiles/SEC_vs_AEC.csv")
+
+# Define thresholds
+sig_threshold <- 0.05
+logfc_threshold <- 0.25
+
+
+aec_vs_sec <- read.csv("~/markers_and_otherCSVfiles/SEC_vs_AEC.csv")
+
+
+p  <- make_volcano_plot(
+  data        = aec_vs_sec,
+  log2fc_col  = "avg_log2FC",
+  padj_col    = "p_val_adj",
+  gene_col    = "X",  # use rownames as gene names, or set to your gene column name
+  up_label    = "SEC",
+  down_label  = "AEC",
+  other_label = "Not significant",
+  padj_cut    = 0.05,
+  fc_cut      = 0.25,
+  color_up    = "#D82638",
+  color_down  = "#397FB9", 
+  color_other = "#D9D9D9",
+  title       = "SEC vs AEC",
+  #subtitle    = ct,
+  label_all_sig = FALSE,
+  # label_genes   = labels_filtered,   # only label these if significant
+  label_top_n   = 20,
+  max_overlaps  = 50,
+  # or FALSE + label_top_n = 50
+  seed        = 123
+)
+print(p)
+
+
+# Create PDF for all volcano plots
+pdf("~/Volcano_plots_AEC_vs_SEC_findmarkers.pdf", width = 8, height = 6)
+print(p)
+dev.off()
+
+
+
+# Nodule growth correlation with outcome ----------------------------------
+
+
+
+
+library(survival)
+library(survminer)
+library(dplyr)
+
+
+
+HVN87_merged_combined <- 
+  HVN87_merged_combined %>%
+  dplyr::rename(
+    ISS   = iss,
+    pfsi_1 = pfsi
+  )
+
+
+
+HVN87_merged_combined$architecture_group_3x <- ifelse(
+  HVN87_merged_combined$Nodule_SIZE_FINAL_with_3x_scored %in% c(4, 5),
+  "Nodular / sheet-like",
+  "Diffuse / mini-nodular"
+)
+
+
+
+# Prepare metadata
+
+HVN87_merged_no_METADATA <- HVN87_merged_combined[!is.na(HVN87_merged_combined$pfs),]
+
+
+HVN87_merged_no_METADATA_no_lowquality <- HVN87_merged_no_METADATA[!is.na(HVN87_merged_no_METADATA$Nodule_SIZE_FINAL_average),]
+
+
+
+HVN87_merged_no_METADATA_no_lowquality$architecture_group_3x <- ifelse(
+  HVN87_merged_no_METADATA_no_lowquality$Nodule_SIZE_FINAL_with_3x_scored %in% c(4, 5),
+  "Nodular / sheet-like",
+  "Diffuse / mini-nodular"
+)
+
+
+
+
+
+library(dplyr)
+
+meta <- HVN87_merged_no_METADATA_no_lowquality
+
+
+meta$BMPC_10 <- meta$bmpc_path / 10
+
+
+meta$reviss <- factor(meta$reviss)
+
+
+
+meta$architecture_group_average <- factor(meta$architecture_group_3x)
+
+
+
+# Cox model — PFS
+
+cox_pfs <- coxph(
+  Surv(pfs, pfsi_1) ~
+    architecture_group_average +
+    #BMPC_10 +
+    reviss, # +
+
+  data = meta
+)
+
+summary(cox_pfs)
+
+# Forest plot
+p <- ggforest(
+  cox_pfs,
+  data = meta,
+  main = "Multivariate Cox Regression PFS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+
+
+
+# Cox model — OS
+
+cox_os <- coxph(
+  Surv(os, osi) ~
+    architecture_group_average +
+    #BMPC_10 +
+    reviss, #+
+
+  
+  data = meta
+)
+
+summary(cox_os)
+
+
+# Forest plot
+p <- ggforest(
+  cox_os,
+  data = meta,
+  main = "Multivariate Cox Regression OS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+
+
+
+
+# Cox model — PFS
+
+cox_pfs <- coxph(
+  Surv(pfs, pfsi_1) ~
+    architecture_group_average,
+  
+  data = meta
+)
+
+summary(cox_pfs)
+
+# Forest plot
+p <- ggforest(
+  cox_pfs,
+  data = meta,
+  main = "Multivariate Cox Regression PFS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+
+
+
+# Cox model — OS
+
+cox_os <- coxph(
+  Surv(os, osi) ~
+    architecture_group_average ,
+  
+  data = meta
+)
+
+summary(cox_os)
+
+
+# Forest plot
+p <- ggforest(
+  cox_os,
+  data = meta,
+  main = "Multivariate Cox Regression OS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+
+
+# Cox model — PFS
+
+cox_pfs <- coxph(
+  Surv(pfs, pfsi_1) ~
+    BMPC_10,
+  
+  data = meta
+)
+
+summary(cox_pfs)
+
+# Forest plot
+p <- ggforest(
+  cox_pfs,
+  data = meta,
+  main = "Multivariate Cox Regression PFS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+
+# Cox model — OS
+
+cox_os <- coxph(
+  Surv(os, osi) ~
+    BMPC_10 ,
+  
+  data = meta
+)
+
+summary(cox_os)
+
+
+# Forest plot
+p <- ggforest(
+  cox_os,
+  data = meta,
+  main = "Multivariate Cox Regression OS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+
+# Cox model — PFS
+
+cox_pfs <- coxph(
+  Surv(pfs, pfsi_1) ~
+    #architecture_group_average +
+    BMPC_10 +
+    reviss, # +
+ 
+  data = meta
+)
+
+summary(cox_pfs)
+
+# Forest plot
+p <- ggforest(
+  cox_pfs,
+  data = meta,
+  main = "Multivariate Cox Regression PFS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+
+
+# Cox model — OS
+
+cox_os <- coxph(
+  Surv(os, osi) ~
+    #architecture_group_average +
+    BMPC_10 +
+    reviss, #+
+  
+  
+  data = meta
+)
+
+summary(cox_os)
+
+
+# Forest plot
+p <- ggforest(
+  cox_os,
+  data = meta,
+  main = "Multivariate Cox Regression OS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+
+
+
+
+
+# Cox model — PFS
+
+cox_pfs <- coxph(
+  Surv(pfs, pfsi_1) ~
+    architecture_group_average +
+    BMPC_10 +
+    reviss, # +
+
+  
+  data = meta
+)
+
+summary(cox_pfs)
+
+# Forest plot
+p <- ggforest(
+  cox_pfs,
+  data = meta,
+  main = "Multivariate Cox Regression PFS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+
+# Cox model — OS
+
+cox_os <- coxph(
+  Surv(os, osi) ~
+    architecture_group_average +
+    BMPC_10 +
+    reviss, #+
+
+  
+  data = meta
+)
+
+summary(cox_os)
+
+
+# Forest plot
+p <- ggforest(
+  cox_os,
+  data = meta,
+  main = "Multivariate Cox Regression OS",
+  cpositions = c(0.02, 0.22, 0.4),
+  fontsize = 1
+)
+p
+
+
+
+
+library(survival)
+library(survminer)
+
+# KM model
+km_os_arch <- survfit(
+  Surv(os, osi) ~ architecture_group_average,
+  data = meta
+)
+
+# Plot
+p_km_os_arch <- ggsurvplot(
+  km_os_arch,
+  data = meta,
+  risk.table = TRUE,
+  pval = TRUE,
+  conf.int = FALSE,
+  xlab = "Time",
+  ylab = "Overall survival probability",
+  legend.title = "Architecture group",
+  palette = c("#9ECAE1", "#08519C"),
+  ggtheme = theme_bw(base_size = 14),
+  risk.table.height = 0.25
+)
+
+# Show
+p_km_os_arch
+
+
+
+library(survival)
+library(survminer)
+
+# KM model — PFS
+km_pfs_arch <- survfit(
+  Surv(pfs, pfsi_1) ~ architecture_group_average,
+  data = meta
+)
+
+# Plot with at-risk table
+p_km_pfs_arch <- ggsurvplot(
+  km_pfs_arch,
+  data = meta,
+  risk.table = TRUE,
+  risk.table.y.text = TRUE,
+  risk.table.y.text.col = TRUE,
+  pval = TRUE,
+  conf.int = FALSE,
+  xlab = "Time",
+  ylab = "Progression-free survival probability",
+  legend.title = "Architecture group",
+  palette = c("#9ECAE1", "#08519C"),
+  ggtheme = theme_bw(base_size = 14),
+  risk.table.height = 0.30
+)
+
+# Show plot + risk table
+p_km_pfs_arch
+
+
