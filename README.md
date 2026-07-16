@@ -51,14 +51,7 @@ To reproduce the computational environment:
 install.packages(c("Seurat", "ggplot2", "dplyr", ...))
 BiocManager::install(c("imcRtools", "SpatialExperiment", "scran", "scater", "cytomapper"))
 
-# Option 2 (recommended): renv
-# renv::restore()  # if an renv.lock file is included
-```
 
-Full session info used for the analysis and figures in the paper:
-
-```
-[Paste output of sessionInfo() here]
 ```
 
 ## Usage
@@ -104,5 +97,5 @@ Sanders MA, van der Holt B, van Duin M, Broijl A, Balogh P, Zweegman S,
 Raaijmakers MHGP, van de Donk NWCJ, Kellermayer Z, Sonneveld P, Cupedo T.
 Spatial profiling identifies a distinct and topographically-defined
 tumor microenvironment that emerges during multiple myeloma evolution.
-2026. [Blood Cancer Discovery, in preparation/under review — DOI to be added upon
+2026. [Blood Cancer Discovery, in preparation/under review — DOI will be added upon
 publication.]
